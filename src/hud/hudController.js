@@ -1,0 +1,222 @@
+/**
+ * Tactical HUD Controller
+ * Updates all DOM HUD telemetry metrics, clocks, gauges, and status badges.
+ */
+
+export class HudController {
+  constructor() {
+    this.startTime = Date.now();
+    this.fpsCount = 0;
+    this.lastFpsTime = performance.now();
+    this.currentFps = 60;
+  }
+
+  /**
+   * Update all real-time telemetry in HUD
+   * @param {Object} telemetry Telemetry data from OrbitalPhysics
+   * @param {Object} satConfig Current satellite config
+   * @param {Object} tleInfo TLE metadata
+   * @param {Object} passInfo Next pass info
+   * @param {Date} simulatedDate Active simulation time
+   */
+  update(telemetry, satConfig, tleInfo, passInfo, simulatedDate = new Date()) {
+    if (!telemetry) return;
+
+    this._updateClocks(simulatedDate);
+    this._updateTelemetryReadouts(telemetry);
+    this._updateKeplerianElements(telemetry.keplerian);
+    this._updateGroundStationLink(telemetry.lookAngles);
+    this._updatePassPredictor(passInfo, simulatedDate);
+    this._updateSatelliteOverview(satConfig, tleInfo);
+    this._updateFps();
+  }
+
+  _updateClocks(simulatedDate) {
+    const realNow = new Date();
+
+    // 1. REALTIME UTC
+    const realtimeUtcEl = document.getElementById('hud-realtime-utc');
+    if (realtimeUtcEl) {
+      realtimeUtcEl.textContent = realNow.toISOString().substring(11, 19) + ' UTC';
+    }
+
+    // 2. SIMULATION EPOCH
+    const simEpochEl = document.getElementById('hud-sim-epoch');
+    if (simEpochEl) {
+      const simStr = simulatedDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      simEpochEl.textContent = simStr;
+    }
+
+    // Mission Elapsed Time / Session Time
+    const metEl = document.getElementById('hud-met-time');
+    if (metEl) {
+      const elapsedSec = Math.floor((Date.now() - this.startTime) / 1000);
+      const hrs = String(Math.floor(elapsedSec / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((elapsedSec % 3600) / 60)).padStart(2, '0');
+      const secs = String(elapsedSec % 60).padStart(2, '0');
+      metEl.textContent = `T+${hrs}:${mins}:${secs}`;
+    }
+  }
+
+  _updateTelemetryReadouts(telemetry) {
+    const { lat, lon, alt, ecf } = telemetry.position;
+    const { scalar, vx, vy, vz } = telemetry.velocity;
+
+    // Lat / Lon
+    const latStr = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}`;
+    const lonStr = `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`;
+
+    this._setText('telem-lat', latStr);
+    this._setText('telem-lon', lonStr);
+    this._setText('telem-alt', `${Math.round(alt).toLocaleString()} km`);
+    this._setText('telem-vel', `${scalar.toFixed(3)} km/s`);
+
+    // Velocity Vector
+    this._setText('telem-vx', `${vx >= 0 ? '+' : ''}${vx.toFixed(2)}`);
+    this._setText('telem-vy', `${vy >= 0 ? '+' : ''}${vy.toFixed(2)}`);
+    this._setText('telem-vz', `${vz >= 0 ? '+' : ''}${vz.toFixed(2)}`);
+
+    // ECF Position
+    this._setText('telem-ecf-x', `${ecf.x >= 0 ? '+' : ''}${Math.round(ecf.x).toLocaleString()}`);
+    this._setText('telem-ecf-y', `${ecf.y >= 0 ? '+' : ''}${Math.round(ecf.y).toLocaleString()}`);
+    this._setText('telem-ecf-z', `${ecf.z >= 0 ? '+' : ''}${Math.round(ecf.z).toLocaleString()}`);
+  }
+
+  _updateKeplerianElements(kep) {
+    if (!kep) return;
+    this._setText('kep-inc', `${kep.inclination.toFixed(3)}°`);
+    this._setText('kep-raan', `${kep.raan.toFixed(3)}°`);
+    this._setText('kep-ecc', kep.eccentricity.toFixed(6));
+    this._setText('kep-argp', `${kep.argPerigee.toFixed(3)}°`);
+    this._setText('kep-ma', `${kep.meanAnomaly.toFixed(3)}°`);
+    this._setText('kep-period', `${kep.periodMinutes.toFixed(1)} min`);
+    this._setText('kep-apogee', `${Math.round(kep.apogeeKm).toLocaleString()} km`);
+    this._setText('kep-perigee', `${Math.round(kep.perigeeKm).toLocaleString()} km`);
+    this._setText('kep-sma', `${Math.round(kep.semiMajorAxisKm).toLocaleString()} km`);
+  }
+
+  _updateGroundStationLink(look) {
+    if (!look) return;
+
+    this._setText('gs-azimuth', `${look.azimuth.toFixed(2)}°`);
+    this._setText('gs-elevation', `${look.elevation >= 0 ? '+' : ''}${look.elevation.toFixed(2)}°`);
+    this._setText('gs-range', `${Math.round(look.range).toLocaleString()} km`);
+    this._setText('gs-range-rate', `${look.rangeRate >= 0 ? '+' : ''}${look.rangeRate.toFixed(2)} km/s`);
+    this._setText('gs-doppler', `${look.dopplerKhz >= 0 ? '+' : ''}${look.dopplerKhz.toFixed(2)} kHz`);
+    this._setText('gs-signal', `${look.signalDbm} dBm`);
+
+    // Link Status Badge: "RF LINK ACTIVE / LOCKED" with green/cyan indicator
+    const statusBadge = document.getElementById('gs-link-badge');
+    const linkIcon = document.getElementById('gs-link-indicator');
+    const signalBar = document.getElementById('gs-signal-bar');
+
+    if (look.isAcquired) {
+      if (statusBadge) {
+        statusBadge.textContent = 'RF LINK ACTIVE / LOCKED';
+        statusBadge.className = 'px-2 py-0.5 text-xs font-bold rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 shadow-glow-cyan animate-pulse';
+      }
+      if (linkIcon) linkIcon.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-glow-cyan';
+      if (signalBar) {
+        signalBar.style.width = `${Math.max(20, Math.min(100, (130 + look.signalDbm) * 1.5))}%`;
+        signalBar.className = 'h-full bg-cyan-400 shadow-glow-cyan transition-all duration-300';
+      }
+    } else if (look.hasLos) {
+      if (statusBadge) {
+        statusBadge.textContent = 'MARGINAL HORIZON LINK';
+        statusBadge.className = 'px-2 py-0.5 text-xs font-bold rounded bg-amber-950/80 border border-amber-500 text-amber-400';
+      }
+      if (linkIcon) linkIcon.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shadow-glow-amber';
+      if (signalBar) {
+        signalBar.style.width = '35%';
+        signalBar.className = 'h-full bg-amber-400 transition-all duration-300';
+      }
+    } else {
+      if (statusBadge) {
+        statusBadge.textContent = 'OCCULTED (BELOW HORIZON)';
+        statusBadge.className = 'px-2 py-0.5 text-xs font-bold rounded bg-rose-950/80 border border-rose-500 text-rose-400';
+      }
+      if (linkIcon) linkIcon.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-glow-crimson';
+      if (signalBar) {
+        signalBar.style.width = '5%';
+        signalBar.className = 'h-full bg-rose-500 transition-all duration-300';
+      }
+    }
+  }
+
+  _updatePassPredictor(passInfo, simulatedDate) {
+    if (!passInfo) return;
+
+    const passStatusEl = document.getElementById('pass-status-text');
+    const passCountdownEl = document.getElementById('pass-countdown-text');
+    const passMaxEl = document.getElementById('pass-max-el');
+    const passDurationEl = document.getElementById('pass-duration');
+
+    if (passInfo.isPermanent) {
+      if (passStatusEl) passStatusEl.textContent = 'PERMANENT GEO VISIBILITY';
+      if (passCountdownEl) passCountdownEl.textContent = '24/7 ACTIVE CONTACT';
+      if (passMaxEl) passMaxEl.textContent = `STEADY +${passInfo.maxElevation.toFixed(1)}°`;
+      if (passDurationEl) passDurationEl.textContent = 'CONTINUOUS';
+      return;
+    }
+
+    if (passStatusEl) passStatusEl.textContent = passInfo.status;
+    if (passMaxEl) passMaxEl.textContent = `${passInfo.maxElevation >= 0 ? '+' : ''}${passInfo.maxElevation.toFixed(1)}°`;
+    if (passDurationEl) passDurationEl.textContent = `${passInfo.durationMinutes} min`;
+
+    if (passCountdownEl) {
+      if (passInfo.aosTime) {
+        const diffMs = passInfo.aosTime.getTime() - simulatedDate.getTime();
+        if (diffMs > 0) {
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffSecs = Math.floor((diffMs % 60000) / 1000);
+          passCountdownEl.textContent = `AOS IN: ${diffMins}m ${diffSecs}s`;
+        } else if (passInfo.losTime) {
+          const losDiffMs = passInfo.losTime.getTime() - simulatedDate.getTime();
+          if (losDiffMs > 0) {
+            const losMins = Math.floor(losDiffMs / 60000);
+            const losSecs = Math.floor((losDiffMs % 60000) / 1000);
+            passCountdownEl.textContent = `IN PASS: ${losMins}m ${losSecs}s REMAINING`;
+          } else {
+            passCountdownEl.textContent = 'PASS COMPLETED';
+          }
+        }
+      } else {
+        passCountdownEl.textContent = 'CALCULATING NEXT AOS...';
+      }
+    }
+  }
+
+  _updateSatelliteOverview(satConfig, tleInfo) {
+    if (!satConfig) return;
+
+    this._setText('sat-name-banner', satConfig.name);
+    this._setText('sat-norad-banner', `NORAD: ${satConfig.noradId}`);
+    this._setText('sat-type-banner', satConfig.orbitClass);
+    this._setText('sat-payload-desc', satConfig.payload);
+    this._setText('sat-operator', satConfig.operator);
+    this._setText('sat-launch-date', satConfig.launchDate);
+    this._setText('sat-coverage', satConfig.coverageArea);
+
+    if (tleInfo) {
+      this._setText('tle-source-badge', tleInfo.source || 'CelesTrak GP');
+    }
+  }
+
+  _updateFps() {
+    this.fpsCount++;
+    const now = performance.now();
+    if (now - this.lastFpsTime >= 1000) {
+      this.currentFps = Math.round((this.fpsCount * 1000) / (now - this.lastFpsTime));
+      this.fpsCount = 0;
+      this.lastFpsTime = now;
+      this._setText('hud-fps', `${this.currentFps} FPS`);
+    }
+  }
+
+  _setText(elementId, text) {
+    const el = document.getElementById(elementId);
+    if (el && el.textContent !== text) {
+      el.textContent = text;
+    }
+  }
+}

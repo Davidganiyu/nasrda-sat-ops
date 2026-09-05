@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NASRDA SAT-OPS // 3D Nigerian Satellite Operations Center</title>
+  <meta name="description" content="Operational 3D real-time satellite tracking and defense telemetry operations center for Nigerian satellites (NigComSat-1R, NigeriaSat-2, NigeriaSat-X) powered by CesiumJS, Tailwind CSS, and satellite.js." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300f0ff'><circle cx='12' cy='12' r='10'/></svg>" />
+</head>
+<body class="bg-hud-dark text-slate-100 overflow-hidden font-mono antialiased select-none">
+
+  <!-- 3D Cesium Globe Container -->
+  <div id="cesiumContainer"></div>
+
+  <!-- Tactical Scanline & HUD Grid Ambient Layer -->
+  <div class="hud-scanline"></div>
+  <div class="absolute inset-0 hud-grid-overlay pointer-events-none z-10"></div>
+
+  <!-- Tactical Vertical Altitude Zoom Slider (Right Viewport Edge) -->
+  <div id="hud-zoom-slider-container" class="pointer-events-auto flex flex-col items-center justify-between hud-glass-panel rounded-lg py-2 px-1 text-[9px] font-mono select-none">
+    <div class="hud-bracket-tr"></div>
+    <div class="hud-bracket-br"></div>
+
+    <div class="text-[8px] font-bold text-cyan-400 uppercase tracking-tighter text-center leading-tight">ALT</div>
+    <div id="hud-zoom-altitude-label" class="text-[9px] font-bold text-slate-200 text-center truncate max-w-[40px]">12,000 km</div>
+
+    <!-- Interactive Track -->
+    <div id="hud-zoom-track" class="zoom-slider-track my-1 relative flex flex-col justify-between items-center py-1">
+      <div id="hud-zoom-thumb" class="zoom-slider-thumb"></div>
+
+      <!-- Presets clickable markers -->
+      <div data-alt-km="45000" class="zoom-preset-mark w-2 h-[1px] bg-cyan-400/60 hover:bg-cyan-300 hover:scale-150 cursor-pointer" title="GEO (45,000 km)"></div>
+      <div data-alt-km="10000" class="zoom-preset-mark w-1.5 h-[1px] bg-slate-500 hover:bg-cyan-300 cursor-pointer" title="MEO (10,000 km)"></div>
+      <div data-alt-km="700" class="zoom-preset-mark w-2 h-[1px] bg-emerald-400/60 hover:bg-emerald-300 hover:scale-150 cursor-pointer" title="LEO (700 km)"></div>
+      <div data-alt-km="50" class="zoom-preset-mark w-1.5 h-[1px] bg-slate-500 hover:bg-cyan-300 cursor-pointer" title="SUB (50 km)"></div>
+      <div data-alt-km="2" class="zoom-preset-mark w-2 h-[1px] bg-amber-400/60 hover:bg-amber-300 hover:scale-150 cursor-pointer" title="FACILITY (2 km)"></div>
+    </div>
+
+    <div class="text-[8px] text-slate-500 font-bold uppercase text-center">ZOOM</div>
+  </div>
+
+  <!-- Floating Minimized Restore Bar (When HUD hidden via 'H') -->
+  <div id="hud-minimized-bar" class="hidden fixed top-3 right-4 z-40 pointer-events-auto">
+    <button id="btn-toggle-hud-restore" class="flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded-lg hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan hover:bg-cyan-950/80 transition-all">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+      RESTORE HUD <span class="text-[10px] text-slate-400">[H]</span>
+    </button>
+  </div>
+
+  <!-- Master UI HUD Overlay Container (Toggled with Hotkey 'H') -->
+  <div id="master-hud-container" class="relative z-20 w-screen h-screen flex flex-col justify-between p-3 pointer-events-none">
+
+    <!-- ==================== TOP COMMAND HEADER ==================== -->
+    <header class="flex items-center justify-between pointer-events-auto hud-glass-panel rounded-lg px-4 py-2 relative">
+      <div class="hud-bracket-tl"></div>
+      <div class="hud-bracket-tr"></div>
+      <div class="hud-bracket-bl"></div>
+      <div class="hud-bracket-br"></div>
+
+      <!-- Agency Brand & Operations Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded bg-cyan-950/80 border border-cyan-400 flex items-center justify-center shadow-glow-cyan">
+          <svg class="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+            <path d="M2 12h20"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-black font-display tracking-widest text-glow-cyan text-cyan-400">NASRDA SAT-OPS</span>
+            <span class="px-1.5 py-0.5 text-[10px] uppercase font-bold rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-300">DEFENCE & CIVIL TT&C</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-sans tracking-wide">
+            Federal Republic of Nigeria Space Operations Center
+          </div>
+        </div>
+      </div>
+
+      <!-- Satellite Constellation Selector Pills -->
+      <div class="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-md border border-slate-800">
+        <button data-sat-id="nigcomsat-1r" class="sat-select-btn px-3 py-1.5 text-xs font-bold font-mono rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-glow-cyan transition-all">
+          NIGCOMSAT-1R <span class="text-[10px] text-cyan-400/80">[GEO 42.5°E]</span>
+        </button>
+        <button data-sat-id="nigeriasat-2" class="sat-select-btn px-3 py-1.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700/60 hover:text-slate-200 hover:border-slate-500 transition-all">
+          NIGERIASAT-2 <span class="text-[10px] text-emerald-400/80">[LEO SSO]</span>
+        </button>
+        <button data-sat-id="nigeriasat-x" class="sat-select-btn px-3 py-1.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700/60 hover:text-slate-200 hover:border-slate-500 transition-all">
+          NIGERIASAT-X <span class="text-[10px] text-amber-400/80">[LEO SSO]</span>
+        </button>
+      </div>
+
+      <!-- Dual Clocks: REALTIME UTC & SIMULATION EPOCH -->
+      <div class="flex items-center gap-4 text-xs font-mono">
+        <div class="text-right">
+          <div class="flex items-center justify-end gap-1.5 text-[10px] text-slate-400">
+            <span>REALTIME:</span>
+            <span id="hud-realtime-utc" class="text-slate-200 font-bold tracking-wider">--:--:-- UTC</span>
+          </div>
+          <div class="flex items-center justify-end gap-1.5">
+            <span class="text-[10px] text-cyan-400 font-bold">SIM EPOCH:</span>
+            <span id="hud-sim-epoch" class="text-cyan-300 font-bold tracking-wider text-glow-cyan">----/--/-- --:--:-- UTC</span>
+          </div>
+        </div>
+
+        <div class="h-8 w-[1px] bg-slate-700"></div>
+
+        <!-- System Lock & HUD Toggle Hint -->
+        <div class="flex items-center gap-2">
+          <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-glow-cyan animate-pulse"></div>
+          <div>
+            <div class="text-[10px] font-bold text-cyan-300 leading-tight">TELEMETRY LOCK</div>
+            <div id="hud-fps" class="text-[10px] text-slate-400">60 FPS</div>
+          </div>
+          <button id="btn-toggle-hud" class="ml-1 px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500 transition-all" title="Toggle HUD visibility [H]">
+            [H]
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN HUD WORKSPACE (LEFT & RIGHT) ==================== -->
+    <div class="flex-1 flex justify-between items-start py-2.5 gap-4 overflow-hidden pointer-events-none">
+
+      <!-- LEFT HUD: ORBITAL TELEMETRY & KEPLERIAN MECHANICS -->
+      <aside class="w-84 max-w-[340px] pointer-events-auto flex flex-col gap-2 max-h-full overflow-y-auto pr-1">
+        
+        <!-- Satellite Identity Card -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative">
+          <div class="hud-bracket-tl"></div>
+          <div class="hud-bracket-tr"></div>
+          
+          <div class="flex items-center justify-between mb-1">
+            <span id="sat-name-banner" class="text-sm font-black text-glow-cyan text-cyan-300 font-display">NIGCOMSAT-1R</span>
+            <span id="sat-norad-banner" class="px-1.5 py-0.5 text-[10px] font-bold bg-slate-900 border border-slate-700 text-slate-300 rounded">NORAD: 37950</span>
+          </div>
+
+          <div id="sat-type-banner" class="text-[11px] text-cyan-400/90 font-semibold mb-1">Geostationary Orbit (42.5° E)</div>
+          <p id="sat-payload-desc" class="text-[10px] text-slate-300 font-sans leading-relaxed mb-2">
+            28 Active Transponders (4 C-band, 14 Ku-band, 8 Ka-band, 2 L-band)
+          </p>
+
+          <div class="grid grid-cols-2 gap-1 text-[10px] border-t border-slate-800/80 pt-1.5 text-slate-400">
+            <div>OPERATOR: <span id="sat-operator" class="text-slate-200 block font-semibold truncate">NIGCOMSAT / NASRDA</span></div>
+            <div>LAUNCH: <span id="sat-launch-date" class="text-slate-200 block font-semibold">2011-12-19</span></div>
+            <div class="col-span-2">TLE DATA: <span id="tle-source-badge" class="text-emerald-400 font-bold">CelesTrak GP (Live)</span></div>
+          </div>
+        </div>
+
+        <!-- Real-Time Sub-Satellite Position & Velocity -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative">
+          <div class="hud-bracket-tl"></div>
+          <div class="hud-bracket-bl"></div>
+
+          <div class="text-[11px] font-bold text-cyan-400 tracking-wider flex items-center justify-between mb-1.5">
+            <span>REAL-TIME TELEMETRY</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 text-xs mb-2">
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">SUB-SAT LATITUDE</div>
+              <div id="telem-lat" class="text-sm font-bold text-cyan-300 font-mono">0.0412° N</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">SUB-SAT LONGITUDE</div>
+              <div id="telem-lon" class="text-sm font-bold text-cyan-300 font-mono">42.5000° E</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">ALTITUDE (km)</div>
+              <div id="telem-alt" class="text-sm font-bold text-emerald-400 font-mono">35,786 km</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">ORBITAL VELOCITY</div>
+              <div id="telem-vel" class="text-sm font-bold text-amber-400 font-mono">3.075 km/s</div>
+            </div>
+          </div>
+
+          <!-- Velocity Vectors (Vx, Vy, Vz) -->
+          <div class="text-[9px] text-slate-400 mb-0.5 flex justify-between">
+            <span>VELOCITY VECTOR (km/s)</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-center mb-1.5">
+            <div class="bg-slate-900/80 py-0.5 rounded border border-slate-800 text-slate-300">Vx: <span id="telem-vx" class="text-cyan-300 font-bold">-0.12</span></div>
+            <div class="bg-slate-900/80 py-0.5 rounded border border-slate-800 text-slate-300">Vy: <span id="telem-vy" class="text-cyan-300 font-bold">+3.07</span></div>
+            <div class="bg-slate-900/80 py-0.5 rounded border border-slate-800 text-slate-300">Vz: <span id="telem-vz" class="text-cyan-300 font-bold">+0.01</span></div>
+          </div>
+
+          <!-- ECF Coordinates (km) -->
+          <div class="text-[9px] text-slate-400 mb-0.5">EARTH-CENTERED FIXED (ECF km)</div>
+          <div class="grid grid-cols-3 gap-1 text-[10px] font-mono text-center">
+            <div class="bg-slate-900/60 py-0.5 rounded border border-slate-800/60 text-slate-400">X: <span id="telem-ecf-x" class="text-slate-200">31,080</span></div>
+            <div class="bg-slate-900/60 py-0.5 rounded border border-slate-800/60 text-slate-400">Y: <span id="telem-ecf-y" class="text-slate-200">28,520</span></div>
+            <div class="bg-slate-900/60 py-0.5 rounded border border-slate-800/60 text-slate-400">Z: <span id="telem-ecf-z" class="text-slate-200">30</span></div>
+          </div>
+        </div>
+
+        <!-- Keplerian Orbital Elements -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative">
+          <div class="hud-bracket-tl"></div>
+          <div class="hud-bracket-bl"></div>
+
+          <div class="text-[11px] font-bold text-cyan-400 tracking-wider mb-1.5">KEPLERIAN ORBITAL ELEMENTS</div>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">INCLINATION (i)</span>
+              <span id="kep-inc" class="text-slate-200 font-bold">0.041°</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">RAAN (Ω)</span>
+              <span id="kep-raan" class="text-slate-200 font-bold">42.51°</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">ECCENTRICITY (e)</span>
+              <span id="kep-ecc" class="text-slate-200 font-bold">0.000214</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">ARG PERIGEE (ω)</span>
+              <span id="kep-argp" class="text-slate-200 font-bold">184.34°</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">MEAN ANOMALY (M)</span>
+              <span id="kep-ma" class="text-slate-200 font-bold">95.12°</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">PERIOD (T)</span>
+              <span id="kep-period" class="text-emerald-400 font-bold">1436.1 min</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">APOGEE</span>
+              <span id="kep-apogee" class="text-slate-200 font-bold">35,792 km</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-800/50 pb-0.5">
+              <span class="text-slate-400">PERIGEE</span>
+              <span id="kep-perigee" class="text-slate-200 font-bold">35,780 km</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT HUD: ABUJA GROUND STATION & TACTICAL POLAR RADAR -->
+      <aside class="w-84 max-w-[340px] pointer-events-auto flex flex-col gap-2 max-h-full overflow-y-auto pl-1 mr-12">
+        
+        <!-- Abuja Ground Station Telemetry & Look Angles -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative">
+          <div class="hud-bracket-tr"></div>
+          <div class="hud-bracket-br"></div>
+
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2">
+              <div id="gs-link-indicator" class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-glow-cyan"></div>
+              <span class="text-xs font-black text-glow-cyan text-cyan-300 font-display">ABUJA GROUND STATION</span>
+            </div>
+            <span class="text-[10px] text-slate-400">CSTD-ABUJA-01</span>
+          </div>
+
+          <div class="text-[10px] text-slate-400 mb-1.5">NASRDA HQ TT&C Facility (8.99° N, 7.39° E)</div>
+
+          <!-- Link Status Badge & Signal Meter -->
+          <div class="bg-slate-950/80 p-2 rounded border border-slate-800 mb-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[9px] text-slate-400">TT&C LINK STATUS</span>
+              <span id="gs-link-badge" class="px-2 py-0.5 text-xs font-bold rounded bg-cyan-950/80 border border-cyan-400 text-cyan-300 shadow-glow-cyan animate-pulse">
+                RF LINK ACTIVE / LOCKED
+              </span>
+            </div>
+            
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1">
+              <span>SIGNAL STRENGTH</span>
+              <span id="gs-signal" class="text-cyan-300 font-bold">-78 dBm</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div id="gs-signal-bar" class="h-full bg-cyan-400 shadow-glow-cyan transition-all duration-300 w-3/4"></div>
+            </div>
+          </div>
+
+          <!-- Look Angles Grid -->
+          <div class="grid grid-cols-2 gap-1.5 text-xs mb-1.5">
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">AZIMUTH (Compass)</div>
+              <div id="gs-azimuth" class="text-sm font-bold text-cyan-300 font-mono">102.50°</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">ELEVATION (Horizon)</div>
+              <div id="gs-elevation" class="text-sm font-bold text-emerald-400 font-mono">+48.20°</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">SLANT RANGE</div>
+              <div id="gs-range" class="text-sm font-bold text-cyan-300 font-mono">37,420 km</div>
+            </div>
+            <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80">
+              <div class="text-[9px] text-slate-400">DOPPLER SHIFT</div>
+              <div id="gs-doppler" class="text-sm font-bold text-amber-400 font-mono">+0.00 kHz</div>
+            </div>
+          </div>
+
+          <div class="flex justify-between text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+            <span>RANGE RATE:</span>
+            <span id="gs-range-rate" class="text-slate-200 font-bold">+0.00 km/s</span>
+          </div>
+        </div>
+
+        <!-- 2D Tactical Polar Sky Radar Scope -->
+        <div class="hud-glass-panel rounded-lg p-2 relative flex flex-col items-center">
+          <div class="hud-bracket-tr"></div>
+          <div class="hud-bracket-br"></div>
+
+          <div class="w-full flex items-center justify-between mb-1 px-1">
+            <span class="text-[10px] font-bold text-cyan-400 tracking-wider">TACTICAL SKY RADAR</span>
+            <span class="text-[9px] text-emerald-400 uppercase font-mono tracking-widest animate-pulse">SWEEP ACTIVE</span>
+          </div>
+
+          <div class="relative w-[220px] h-[220px] flex items-center justify-center">
+            <canvas id="radarCanvas" class="w-[220px] h-[220px] rounded-full"></canvas>
+          </div>
+        </div>
+
+        <!-- Pass Predictor & AOS Countdown Card -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative">
+          <div class="hud-bracket-tr"></div>
+          <div class="hud-bracket-br"></div>
+
+          <div class="text-[11px] font-bold text-cyan-400 tracking-wider mb-1 flex items-center justify-between">
+            <span>PASS PREDICTOR</span>
+            <span id="pass-status-text" class="text-[9px] text-emerald-400 font-normal">PERMANENT GEO VISIBILITY</span>
+          </div>
+
+          <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80 flex items-center justify-between mb-1.5">
+            <span class="text-[9px] text-slate-400">NEXT ABUJA PASS (AOS):</span>
+            <span id="pass-countdown-text" class="text-xs font-bold text-cyan-300 font-mono">24/7 ACTIVE CONTACT</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+            <div class="bg-slate-900/60 p-1 rounded border border-slate-800/60">
+              <span class="text-slate-400 block text-[9px]">MAX ELEVATION:</span>
+              <span id="pass-max-el" class="text-slate-200 font-bold text-xs">STEADY +48.2°</span>
+            </div>
+            <div class="bg-slate-900/60 p-1 rounded border border-slate-800/60">
+              <span class="text-slate-400 block text-[9px]">PASS DURATION:</span>
+              <span id="pass-duration" class="text-slate-200 font-bold text-xs">CONTINUOUS</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- ==================== BOTTOM TACTICAL DOCK & CONTROLS ==================== -->
+    <footer class="pointer-events-auto hud-glass-panel rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2.5 relative">
+      <div class="hud-bracket-tl"></div>
+      <div class="hud-bracket-tr"></div>
+      <div class="hud-bracket-bl"></div>
+      <div class="hud-bracket-br"></div>
+
+      <!-- Camera Tracking Controls & Landmarks Selector -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button id="btn-cam-lock" class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded bg-slate-900/80 border border-cyan-500/40 text-cyan-400 hover:border-cyan-400 transition-all">
+          <div id="cam-lock-indicator" class="w-2 h-2 rounded-full bg-cyan-400"></div>
+          <span id="cam-lock-label">LOCK CAMERA</span>
+        </button>
+
+        <div class="flex items-center gap-0.5 bg-slate-950/80 p-0.5 rounded border border-slate-800">
+          <button data-pov="chase" class="cam-pov-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-slate-200">
+            CHASE
+          </button>
+          <button data-pov="topdown" class="cam-pov-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-slate-200">
+            NADIR
+          </button>
+          <button data-pov="ground" class="cam-pov-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-slate-200">
+            ABUJA POV
+          </button>
+          <button id="btn-reset-view" class="px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-cyan-300">
+            RESET
+          </button>
+        </div>
+
+        <!-- Landmarks Fly-To Dropdown -->
+        <div class="flex items-center bg-slate-950/80 px-1 py-0.5 rounded border border-slate-800">
+          <span class="text-[9px] text-cyan-400 font-bold px-1">FLY-TO:</span>
+          <select id="select-landmark" class="bg-slate-900 text-slate-200 text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-cyan-400 cursor-pointer">
+            <option value="">-- SELECT LANDMARK --</option>
+            <option value="abuja-ttc">NASRDA HQ / TT&C (Abuja)</option>
+            <option value="lagos-offshore">Lagos Offshore / Gulf of Guinea</option>
+            <option value="nigeria-extent">Nigeria National Extent</option>
+            <option value="geo-orbit">Deep Space Orbit (GEO 42.5°E)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Sensor & Tactical Layer Toggles -->
+      <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded border border-slate-800 text-xs flex-wrap">
+        <span class="text-[9px] text-slate-500 px-1 font-bold">LAYERS:</span>
+        <button id="toggle-orbit-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/60">
+          3D ORBIT
+        </button>
+        <button id="toggle-footprint-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/60">
+          BEAM FOOTPRINT
+        </button>
+        <button id="toggle-link-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/60">
+          TT&C LASER
+        </button>
+        <button id="toggle-firms-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-500 border border-slate-800 hover:text-amber-300 transition-all">
+          THERMAL / FIRMS
+        </button>
+      </div>
+
+      <!-- Optics Mode Cycler & Simulation Warp Rate -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button id="btn-cycle-optics" class="px-2.5 py-1 text-xs font-mono rounded bg-slate-900 text-slate-300 border border-slate-700 hover:border-slate-500 flex items-center gap-1.5">
+          OPTICS: NORMAL
+        </button>
+
+        <!-- Simulation Warp Rate Controls -->
+        <div class="flex items-center gap-0.5 bg-slate-950/80 p-0.5 rounded border border-slate-800 text-xs">
+          <span class="text-[9px] text-slate-500 px-1 font-bold">WARP:</span>
+          <button data-scale="0" class="time-scale-btn px-1.5 py-0.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200">
+            PAUSE
+          </button>
+          <button data-scale="1" class="time-scale-btn px-1.5 py-0.5 text-xs font-mono font-bold rounded bg-amber-950/80 text-amber-300 border border-amber-400 shadow-glow-amber">
+            1x
+          </button>
+          <button data-scale="10" class="time-scale-btn px-1.5 py-0.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200">
+            10x
+          </button>
+          <button data-scale="60" class="time-scale-btn px-1.5 py-0.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200">
+            60x
+          </button>
+          <button data-scale="300" class="time-scale-btn px-1.5 py-0.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200">
+            300x
+          </button>
+        </div>
+
+        <!-- Audio & Export Utilities -->
+        <button id="btn-toggle-audio" class="px-2 py-1 text-xs font-mono rounded bg-cyan-950 text-cyan-400 border border-cyan-500 shadow-glow-cyan hover:border-cyan-300 transition-all">
+          AUDIO: ON
+        </button>
+        <button id="btn-export-telem" class="px-2 py-1 text-xs font-mono rounded bg-slate-900 text-slate-300 border border-slate-700 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          EXPORT
+        </button>
+      </div>
+
+    </footer>
+
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

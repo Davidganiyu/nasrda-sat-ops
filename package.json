@@ -1,0 +1,23 @@
+{
+  "name": "nasrda-sat-ops",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "cesium": "^1.127.0",
+    "lucide": "^0.475.0",
+    "satellite.js": "^5.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.0",
+    "vite-plugin-cesium": "^1.2.23"
+  }
+}

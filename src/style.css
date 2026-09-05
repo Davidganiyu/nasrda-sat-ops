@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #030712;
+  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#cesiumContainer {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Hide default Cesium widget junk */
+.cesium-viewer-bottom,
+.cesium-viewer-animationContainer,
+.cesium-viewer-timelineContainer,
+.cesium-viewer-fullscreenContainer,
+.cesium-viewer-vrContainer,
+.cesium-viewer-toolbar {
+  display: none !important;
+}
+
+.cesium-credit-expand-link,
+.cesium-widget-credits {
+  display: none !important;
+}
+
+/* Master HUD transition for Hotkey 'H' toggle */
+#master-hud-container {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sci-Fi HUD Scanline & Grid Effect */
+.hud-grid-overlay {
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.hud-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to bottom, rgba(0, 240, 255, 0), rgba(0, 240, 255, 0.35), rgba(0, 240, 255, 0));
+  opacity: 0.7;
+  pointer-events: none;
+  animation: scanline 8s linear infinite;
+  z-index: 30;
+}
+
+/* Glassmorphism Tactical Box */
+.hud-glass-panel {
+  background: rgba(6, 11, 25, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(0, 240, 255, 0.05);
+}
+
+.hud-glass-panel-subtle {
+  background: rgba(10, 20, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+}
+
+/* Corner bracket accents */
+.hud-bracket-tl {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #00f0ff;
+  border-left: 2px solid #00f0ff;
+}
+
+.hud-bracket-tr {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #00f0ff;
+  border-right: 2px solid #00f0ff;
+}
+
+.hud-bracket-bl {
+  position: absolute;
+  bottom: -1px;
+  left: -1px;
+  width: 8px;
+  height: 8px;
+  border-bottom: 2px solid #00f0ff;
+  border-left: 2px solid #00f0ff;
+}
+
+.hud-bracket-br {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-bottom: 2px solid #00f0ff;
+  border-right: 2px solid #00f0ff;
+}
+
+/* Glowing text helpers */
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.65), 0 0 20px rgba(0, 240, 255, 0.3);
+}
+
+.text-glow-emerald {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.65), 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.text-glow-amber {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.65), 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.text-glow-crimson {
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.65), 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Tactical Vertical Zoom Slider */
+#hud-zoom-slider-container {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 380px;
+  z-index: 25;
+}
+
+.zoom-slider-track {
+  position: relative;
+  width: 6px;
+  height: 280px;
+  margin: 0 auto;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.zoom-slider-thumb {
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 12px;
+  transform: translate(-50%, 50%);
+  background: #00f0ff;
+  border: 1px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.85);
+  cursor: grab;
+  transition: transform 0.05s ease-out;
+}
+
+.zoom-slider-thumb:active {
+  cursor: grabbing;
+  background: #38bdf8;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(3, 7, 18, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.7);
+}
+
+/* Tactical Pulse Animation for radar target & markers */
+@keyframes hudPing {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.hud-ping {
+  animation: hudPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
