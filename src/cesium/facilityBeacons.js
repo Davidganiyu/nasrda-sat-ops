@@ -115,14 +115,16 @@ export class FacilityBeaconsManager {
           image: this._generateBeaconSvg(fac.color, fac.iconType),
           scale: 0.85,
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         point: {
           pixelSize: 8,
           color: color,
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 2,
-          scaleByDistance: new Cesium.NearFarScalar(1.0e3, 1.5, 2.0e7, 0.7)
+          scaleByDistance: new Cesium.NearFarScalar(1.0e3, 1.5, 2.0e7, 0.7),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         label: {
           text: `${fac.name}\n[${fac.callsign}]`,
@@ -133,7 +135,8 @@ export class FacilityBeaconsManager {
           outlineWidth: 3,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -26),
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 8.0e6)
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 8.0e6),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         description: `
           <div style="font-family: monospace; color: #fff; padding: 6px;">
@@ -145,6 +148,7 @@ export class FacilityBeaconsManager {
           </div>
         `
       });
+      beacon.facilityData = fac;
 
       // 2. Concentric Pulsing Tactical Ground Ring
       const groundRing = this.viewer.entities.add({
@@ -161,6 +165,7 @@ export class FacilityBeaconsManager {
           height: fac.alt
         }
       });
+      groundRing.facilityData = fac;
 
       this.entities.push(beacon, groundRing);
     });

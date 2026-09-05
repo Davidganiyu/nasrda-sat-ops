@@ -270,6 +270,7 @@ export class HudController {
     const modal = document.getElementById('hud-hotspot-modal');
     if (!modal || !spot) return;
 
+    this.selectedHotspot = spot;
     this._setText('hotspot-name', spot.name);
     this._setText('hotspot-region', spot.region);
     this._setText('hotspot-coords', `${spot.lat.toFixed(4)}°N, ${spot.lon.toFixed(4)}°E`);
@@ -280,7 +281,31 @@ export class HudController {
     modal.classList.remove('hidden');
   }
 
+  showFacilityModal(fac) {
+    const modal = document.getElementById('hud-facility-modal');
+    if (!modal || !fac) return;
+
+    this.selectedFacility = fac;
+    this._setText('facility-name', fac.name || fac.shortName);
+    this._setText('facility-callsign', fac.callsign || fac.id.toUpperCase());
+    this._setText('facility-role', fac.role || 'Strategic Space Asset');
+    const elev = fac.elevationM ? ` (${fac.elevationM}m ASL)` : '';
+    this._setText('facility-coords', `${fac.lat.toFixed(4)}°N, ${fac.lon.toFixed(4)}°E${elev}`);
+    this._setText('facility-details', fac.mandate || fac.role || '--');
+
+    modal.classList.remove('hidden');
+  }
+
+  hideFacilityModal() {
+    this.selectedFacility = null;
+    const modal = document.getElementById('hud-facility-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  }
+
   hideHotspotModal() {
+    this.selectedHotspot = null;
     const modal = document.getElementById('hud-hotspot-modal');
     if (modal) {
       modal.classList.add('hidden');

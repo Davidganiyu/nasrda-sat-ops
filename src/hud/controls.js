@@ -314,6 +314,7 @@ export class ControlsManager {
     // 14. Thermal Hotspot Modal Close & Dismiss
     const btnCloseHotspot = document.getElementById('btn-close-hotspot-modal');
     const btnDismissHotspot = document.getElementById('btn-hotspot-dismiss');
+    const btnCenterHotspot = document.getElementById('btn-hotspot-center');
     const closeHotspot = () => {
       audio.playClick();
       if (this.options.onUnselectHotspot) {
@@ -322,9 +323,82 @@ export class ControlsManager {
     };
     if (btnCloseHotspot) btnCloseHotspot.addEventListener('click', closeHotspot);
     if (btnDismissHotspot) btnDismissHotspot.addEventListener('click', closeHotspot);
+    if (btnCenterHotspot) {
+      btnCenterHotspot.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onCenterHotspot) {
+          this.options.onCenterHotspot();
+        }
+      });
+    }
 
-    // 15. Mobile Slide-in Drawers ([TELEMETRY] & [GROUND LINK])
+    // 15. NASRDA Strategic Facility Modal Controls
+    const btnCloseFacility = document.getElementById('btn-close-facility-modal');
+    const btnDismissFacility = document.getElementById('btn-facility-dismiss');
+    const btnCenterFacility = document.getElementById('btn-facility-center');
+    const closeFacility = () => {
+      audio.playClick();
+      if (this.options.onDismissFacility) {
+        this.options.onDismissFacility();
+      }
+    };
+    if (btnCloseFacility) btnCloseFacility.addEventListener('click', closeFacility);
+    if (btnDismissFacility) btnDismissFacility.addEventListener('click', closeFacility);
+    if (btnCenterFacility) {
+      btnCenterFacility.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onCenterFacility) {
+          this.options.onCenterFacility();
+        }
+      });
+    }
+
+    // 16. PC Desktop Collapsible Panels (Telemetry & Ground Station / Radar)
+    this.initPcCollapsiblePanels();
+
+    // 17. Mobile Slide-in Drawers ([TELEMETRY] & [GROUND LINK])
     this.initMobileDrawers();
+  }
+
+  initPcCollapsiblePanels() {
+    const leftPanel = document.getElementById('hud-left-panel');
+    const rightPanel = document.getElementById('hud-right-panel');
+    const btnCollapseLeft = document.getElementById('btn-collapse-left-pc');
+    const btnExpandLeft = document.getElementById('btn-expand-left-pc');
+    const btnCollapseRight = document.getElementById('btn-collapse-right-pc');
+    const btnExpandRight = document.getElementById('btn-expand-right-pc');
+
+    if (btnCollapseLeft && leftPanel && btnExpandLeft) {
+      btnCollapseLeft.addEventListener('click', () => {
+        audio.playClick();
+        leftPanel.classList.add('md:hidden');
+        btnExpandLeft.classList.remove('hidden');
+        btnExpandLeft.classList.add('flex');
+      });
+
+      btnExpandLeft.addEventListener('click', () => {
+        audio.playClick();
+        leftPanel.classList.remove('md:hidden');
+        btnExpandLeft.classList.add('hidden');
+        btnExpandLeft.classList.remove('flex');
+      });
+    }
+
+    if (btnCollapseRight && rightPanel && btnExpandRight) {
+      btnCollapseRight.addEventListener('click', () => {
+        audio.playClick();
+        rightPanel.classList.add('md:hidden');
+        btnExpandRight.classList.remove('hidden');
+        btnExpandRight.classList.add('flex');
+      });
+
+      btnExpandRight.addEventListener('click', () => {
+        audio.playClick();
+        rightPanel.classList.remove('md:hidden');
+        btnExpandRight.classList.add('hidden');
+        btnExpandRight.classList.remove('flex');
+      });
+    }
   }
 
   initMobileDrawers() {

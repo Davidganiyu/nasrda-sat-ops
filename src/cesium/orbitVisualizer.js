@@ -32,8 +32,9 @@ export class OrbitVisualizer {
     // Convert ECF coordinates to Cesium Cartesian3 positions
     const cartesianPositions = orbitPoints.map(pt => new Cesium.Cartesian3(pt.ecf.x, pt.ecf.y, pt.ecf.z));
 
-    // For closed loops (complete orbit), close the loop
-    if (cartesianPositions.length > 0) {
+    // For closed loops (complete orbit), close the loop only for GEO satellites
+    const isGeo = (satConfig && satConfig.type === 'GEO') || (satConfig && satConfig.id === 'nigcomsat-1r');
+    if (isGeo && cartesianPositions.length > 0) {
       cartesianPositions.push(cartesianPositions[0]);
     }
 

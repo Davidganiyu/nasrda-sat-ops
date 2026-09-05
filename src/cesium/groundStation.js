@@ -6,6 +6,7 @@
 
 import * as Cesium from 'cesium';
 import { GROUND_STATIONS } from '../config/satellites.js';
+import { NASRDA_FACILITIES } from './facilityBeacons.js';
 
 export class GroundStationVisualizer {
   /**
@@ -62,13 +63,15 @@ export class GroundStationVisualizer {
         image: this._generateDishSvg(),
         scale: 0.9,
         verticalOrigin: Cesium.VerticalOrigin.CENTER,
-        horizontalOrigin: Cesium.HorizontalOrigin.CENTER
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
       point: {
         pixelSize: 9,
         color: Cesium.Color.fromCssColorString('#10b981'),
         outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 2
+        outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
       label: {
         text: `TT&C GROUND STATION [ABUJA] (${this.station.latitude.toFixed(2)}°N, ${this.station.longitude.toFixed(2)}°E)`,
@@ -79,9 +82,11 @@ export class GroundStationVisualizer {
         outlineWidth: 3,
         verticalOrigin: Cesium.VerticalOrigin.TOP,
         pixelOffset: new Cesium.Cartesian2(0, 22),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 6.0e7)
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 6.0e7),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
+    this.stationEntity.facilityData = NASRDA_FACILITIES[0];
 
     // Pulsing Ground Radar Coverage Ring (5 deg minimum elevation horizon circle)
     this.radarRingEntity = this.viewer.entities.add({

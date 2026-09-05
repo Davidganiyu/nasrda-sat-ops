@@ -98,7 +98,8 @@ export class SatelliteEntity {
         pixelSize: 6,
         color: cesiumColor.withAlpha(0.7),
         outlineColor: Cesium.Color.WHITE.withAlpha(0.5),
-        outlineWidth: 1
+        outlineWidth: 1,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
 
@@ -148,6 +149,11 @@ export class SatelliteEntity {
     const altStr = Math.round(telemetry.position.alt).toLocaleString();
     const velStr = telemetry.velocity.scalar.toFixed(2);
     this.entity.label.text = `${this.satConfig.name} | ${altStr} km | ${velStr} km/s`;
+    this.lastPosition = satPositionMeters;
+  }
+
+  getPosition() {
+    return this.lastPosition || (this.entity ? this.entity.position.getValue(this.viewer.clock.currentTime) : null);
   }
 
   destroy() {

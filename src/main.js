@@ -5,6 +5,7 @@
  */
 
 import './style.css';
+import * as Cesium from 'cesium';
 import { SATELLITE_CATALOG, DEFAULT_SATELLITE_ID, GROUND_STATIONS } from './config/satellites.js';
 import { TleService } from './services/tleService.js';
 import { OrbitalPhysics } from './math/orbitalPhysics.js';
@@ -34,6 +35,7 @@ class SatOpsApplication {
     this.simulatedTime = new Date();
     this.lastRealTime = performance.now();
     this.lastPassCalcTime = 0;
+    this.lastOrbitCalcTime = 0;
     this.lastPhysicsComputeTime = 0;
     this.physicsThrottleMs = 100; // 100ms throttle (10 Hz) for Keplerian math
     this.timeScale = 1;
@@ -58,8 +60,44 @@ class SatOpsApplication {
   async init() {
     console.log('[SatOps] Initializing NASRDA Satellite Operations Center...');
 
-    // 1. Initialize Cesium Globe with smooth progressive zoom
-    this.globeManager = new GlobeManager('cesiumContainer');
+    // 1. Initialize Cesium Globe with unified picking & camera clamping
+    this.globeManager = new GlobeManager('cesiumContainer', {
+      onSelectHotspot: (spot) => {
+        if (this.hudController) {
+          this.hudController.showHotspotModal(spot);
+          this.hudController.showTrackingBanner(spot.name);
+        }
+        if (this.controlsManager) {
+          this.controlsManager.cameraLocked = false;
+          this.controlsManager._updateCamLockStyles();
+        }
+      },
+      onSelectFacility: (fac) => {
+        this.globeManager.flyToFacility(fac);
+        if (this.hudController) {
+          this.hudController.showFacilityModal(fac);
+          this.hudController.showTrackingBanner(fac.shortName || fac.name);
+        }
+        if (this.controlsManager) {
+          this.controlsManager.cameraLocked = false;
+          this.controlsManager._updateCamLockStyles();
+        }
+      },
+      onSelectSatellite: (entity) => {
+        if (this.controlsManager) {
+          this.controlsManager.cameraLocked = true;
+          this.controlsManager.cameraMode = 'chase';
+          this.controlsManager._updateCamLockStyles();
+        }
+        this.handleCameraModeChange('chase', true);
+        if (this.hudController) {
+          this.hudController.showTrackingBanner(this.currentSatConfig.name);
+        }
+      },
+      onResetView: () => {
+        this.resetAllViews();
+      }
+    });
 
     // 2. Initialize Tactical Vertical Zoom Slider
     this.zoomSlider = new ZoomSlider({ globeManager: this.globeManager });
@@ -111,7 +149,7 @@ class SatOpsApplication {
         this.handleCameraModeChange(mode, locked);
         if (locked && this.hudController) {
           this.hudController.showTrackingBanner(this.currentSatConfig.name);
-        } else if (!this.thermalHotspots?.selectedHotspot && this.hudController) {
+        } else if (!this.thermalHotspots?.selectedHotspot && !this.hudController?.selectedFacility && this.hudController) {
           this.hudController.hideTrackingBanner();
         }
       },
@@ -121,29 +159,34 @@ class SatOpsApplication {
           this.hudController.showTrackingBanner(landmark.name);
         }
       },
-      onResetView: () => {
-        this.globeManager.resetCameraToNigeria();
-        if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
-        if (this.hudController) {
-          this.hudController.hideTrackingBanner();
-          this.hudController.hideHotspotModal();
-        }
-      },
-      onUnselectView: () => {
-        this.globeManager.resetCameraToNigeria();
-        if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
-        if (this.hudController) {
-          this.hudController.hideTrackingBanner();
-          this.hudController.hideHotspotModal();
-        }
-      },
+      onResetView: () => this.resetAllViews(),
+      onUnselectView: () => this.resetAllViews(),
       onUnselectHotspot: () => {
         if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
         if (this.hudController) {
           this.hudController.hideHotspotModal();
-          if (!this.controlsManager?.cameraLocked) {
+          if (!this.controlsManager?.cameraLocked && !this.hudController?.selectedFacility) {
             this.hudController.hideTrackingBanner();
           }
+        }
+      },
+      onDismissFacility: () => {
+        if (this.hudController) {
+          this.hudController.hideFacilityModal();
+          if (!this.controlsManager?.cameraLocked && !this.thermalHotspots?.selectedHotspot) {
+            this.hudController.hideTrackingBanner();
+          }
+        }
+      },
+      onCenterFacility: () => {
+        if (this.hudController?.selectedFacility) {
+          this.globeManager.flyToFacility(this.hudController.selectedFacility);
+        }
+      },
+      onCenterHotspot: () => {
+        const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
+        if (spot) {
+          this.globeManager.flyToCoordinates(spot.lon, spot.lat, 40000.0);
         }
       },
       onResetRealtime: () => {
@@ -154,6 +197,7 @@ class SatOpsApplication {
           const orbitPoints = OrbitalPhysics.generateOrbitPath(this.satrec, this.simulatedTime, this.currentSatConfig);
           this.orbitVisualizer.updateOrbitPath(orbitPoints, this.currentSatConfig);
           this.passInfo = OrbitalPhysics.findNextPass(this.satrec, this.simulatedTime, GROUND_STATIONS.abuja, this.currentSatConfig);
+          this.lastOrbitCalcTime = this.simulatedTime.getTime();
         }
         this.updateTelemetryStep(this.simulatedTime);
         this.lastPhysicsComputeTime = performance.now();
@@ -164,6 +208,7 @@ class SatOpsApplication {
           const orbitPoints = OrbitalPhysics.generateOrbitPath(this.satrec, this.simulatedTime, this.currentSatConfig);
           this.orbitVisualizer.updateOrbitPath(orbitPoints, this.currentSatConfig);
           this.passInfo = OrbitalPhysics.findNextPass(this.satrec, this.simulatedTime, GROUND_STATIONS.abuja, this.currentSatConfig);
+          this.lastOrbitCalcTime = this.simulatedTime.getTime();
         }
         this.updateTelemetryStep(this.simulatedTime);
         this.lastPhysicsComputeTime = performance.now();
@@ -233,11 +278,33 @@ class SatOpsApplication {
     this.lastPassCalcTime = this.simulatedTime.getTime();
 
     // Initial Telemetry Step
+    this.lastOrbitCalcTime = this.simulatedTime.getTime();
     this.updateTelemetryStep(this.simulatedTime);
 
     // If camera was locked, update tracked entity
     if (this.controlsManager.cameraLocked) {
       this.globeManager.setCameraMode(this.controlsManager.cameraMode, this.satelliteEntity.entity, GROUND_STATIONS.abuja);
+      if (this.latestTelemetry) {
+        this.globeManager.updateCameraForActiveMode(this.latestTelemetry);
+      }
+    }
+  }
+
+  /**
+   * Reset all views, release camera lock, hide modals, and re-frame Nigeria
+   */
+  resetAllViews() {
+    this.globeManager.resetCameraToNigeria();
+    if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
+    if (this.hudController) {
+      this.hudController.hideTrackingBanner();
+      this.hudController.hideHotspotModal();
+      this.hudController.hideFacilityModal();
+    }
+    if (this.controlsManager) {
+      this.controlsManager.cameraLocked = false;
+      this.controlsManager.cameraMode = 'free';
+      this.controlsManager._updateCamLockStyles();
     }
   }
 
@@ -258,6 +325,9 @@ class SatOpsApplication {
   handleCameraModeChange(mode, locked) {
     const satEnt = this.satelliteEntity ? this.satelliteEntity.entity : null;
     this.globeManager.setCameraMode(mode, satEnt, GROUND_STATIONS.abuja);
+    if (locked && this.latestTelemetry) {
+      this.globeManager.updateCameraForActiveMode(this.latestTelemetry);
+    }
   }
 
   /**
@@ -289,12 +359,18 @@ class SatOpsApplication {
 
     this.latestTelemetry = telem;
 
-    // Periodically refresh pass prediction for LEO satellites (every 10s of simulated time)
-    if (this.currentSatConfig.type === 'LEO') {
+    // Periodically refresh pass prediction & orbit path for LEO satellites (every 10-15s of simulated time)
+    if (this.currentSatConfig.type === 'LEO' && this.satrec) {
       const timeSincePassCalc = Math.abs(currentTime.getTime() - this.lastPassCalcTime);
       if (timeSincePassCalc > 10000) {
         this.passInfo = OrbitalPhysics.findNextPass(this.satrec, currentTime, GROUND_STATIONS.abuja, this.currentSatConfig);
         this.lastPassCalcTime = currentTime.getTime();
+      }
+      const timeSinceOrbitCalc = Math.abs(currentTime.getTime() - this.lastOrbitCalcTime);
+      if (timeSinceOrbitCalc > 15000) {
+        const orbitPoints = OrbitalPhysics.generateOrbitPath(this.satrec, currentTime, this.currentSatConfig);
+        this.orbitVisualizer.updateOrbitPath(orbitPoints, this.currentSatConfig);
+        this.lastOrbitCalcTime = currentTime.getTime();
       }
     }
 
@@ -334,10 +410,20 @@ class SatOpsApplication {
         this.simulatedTime = new Date(this.simulatedTime.getTime() + simDeltaMs);
       }
 
+      // Synchronize Cesium's internal clock to exact simulated time
+      if (this.globeManager?.viewer?.clock) {
+        this.globeManager.viewer.clock.currentTime = Cesium.JulianDate.fromDate(this.simulatedTime);
+      }
+
       // Throttle SGP4 Keplerian orbital math to run once every 100ms (10 Hz) instead of every WebGL frame
       if (currentRealTime - this.lastPhysicsComputeTime >= this.physicsThrottleMs) {
         this.updateTelemetryStep(this.simulatedTime);
         this.lastPhysicsComputeTime = currentRealTime;
+      }
+
+      // Smooth Chase & Nadir Camera updates on every frame (60 FPS) without stutter
+      if (this.latestTelemetry && this.controlsManager?.cameraLocked) {
+        this.globeManager.updateCameraForActiveMode(this.latestTelemetry);
       }
 
       // Render 2D Radar Canvas

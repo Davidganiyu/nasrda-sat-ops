@@ -156,7 +156,6 @@ export class ThermalHotspotsManager {
     this.handler = null;
 
     this.initHotspots();
-    this.initPickingHandler();
   }
 
   _generateFireSvg() {
@@ -235,18 +234,6 @@ export class ThermalHotspotsManager {
 
       this.entities.push(marker, ring);
     });
-  }
-
-  initPickingHandler() {
-    this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
-    this.handler.setInputAction((movement) => {
-      if (!this.visible) return;
-
-      const pickedObject = this.viewer.scene.pick(movement.position);
-      if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.firmsData) {
-        this.selectHotspot(pickedObject.id.firmsData);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
   /**
