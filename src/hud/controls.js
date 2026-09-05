@@ -235,13 +235,102 @@ export class ControlsManager {
       }
     });
 
-    // HUD toggle button on screen for mobile/mouse users
+    // HUD toggle button on screen for desktop users
     const btnToggleHud = document.getElementById('btn-toggle-hud');
     if (btnToggleHud) {
       btnToggleHud.addEventListener('click', () => {
         this.toggleHudVisibility();
       });
     }
+
+    // HUD toggle button on screen for mobile header
+    const btnToggleHudMobile = document.getElementById('btn-toggle-hud-mobile');
+    if (btnToggleHudMobile) {
+      btnToggleHudMobile.addEventListener('click', () => {
+        this.toggleHudVisibility();
+      });
+    }
+
+    // 11. Mobile Slide-in Drawers ([INFO] & [RADAR])
+    this.initMobileDrawers();
+  }
+
+  initMobileDrawers() {
+    const leftPanel = document.getElementById('hud-left-panel');
+    const rightPanel = document.getElementById('hud-right-panel');
+    const backdrop = document.getElementById('hud-drawer-backdrop');
+
+    const btnOpenInfo = document.getElementById('btn-open-info-drawer');
+    const btnOpenRadar = document.getElementById('btn-open-radar-drawer');
+    const btnCloseLeft = document.getElementById('btn-close-left-drawer');
+    const btnCloseRight = document.getElementById('btn-close-right-drawer');
+
+    const closeAllDrawers = () => {
+      if (leftPanel) {
+        leftPanel.classList.add('-translate-x-full');
+        leftPanel.classList.remove('translate-x-0');
+      }
+      if (rightPanel) {
+        rightPanel.classList.add('translate-x-full');
+        rightPanel.classList.remove('translate-x-0');
+      }
+      if (backdrop) {
+        backdrop.classList.add('hidden');
+      }
+    };
+
+    if (btnOpenInfo && leftPanel) {
+      btnOpenInfo.addEventListener('click', () => {
+        audio.playClick();
+        const isOpen = leftPanel.classList.contains('translate-x-0');
+        closeAllDrawers();
+        if (!isOpen) {
+          leftPanel.classList.remove('-translate-x-full');
+          leftPanel.classList.add('translate-x-0');
+          if (backdrop) backdrop.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (btnOpenRadar && rightPanel) {
+      btnOpenRadar.addEventListener('click', () => {
+        audio.playClick();
+        const isOpen = rightPanel.classList.contains('translate-x-0');
+        closeAllDrawers();
+        if (!isOpen) {
+          rightPanel.classList.remove('translate-x-full');
+          rightPanel.classList.add('translate-x-0');
+          if (backdrop) backdrop.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (btnCloseLeft) {
+      btnCloseLeft.addEventListener('click', () => {
+        audio.playClick();
+        closeAllDrawers();
+      });
+    }
+
+    if (btnCloseRight) {
+      btnCloseRight.addEventListener('click', () => {
+        audio.playClick();
+        closeAllDrawers();
+      });
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener('click', () => {
+        closeAllDrawers();
+      });
+    }
+
+    // Auto-close drawers if viewport is resized to desktop
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        closeAllDrawers();
+      }
+    });
   }
 
   toggleHudVisibility() {

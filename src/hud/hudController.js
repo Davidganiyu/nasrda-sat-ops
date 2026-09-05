@@ -40,11 +40,15 @@ export class HudController {
       realtimeUtcEl.textContent = realNow.toISOString().substring(11, 19) + ' UTC';
     }
 
-    // 2. SIMULATION EPOCH
+    // 2. SIMULATION EPOCH (Desktop & Mobile)
     const simEpochEl = document.getElementById('hud-sim-epoch');
+    const simEpochMobileEl = document.getElementById('hud-sim-epoch-mobile');
+    const simStr = simulatedDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
     if (simEpochEl) {
-      const simStr = simulatedDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
       simEpochEl.textContent = simStr;
+    }
+    if (simEpochMobileEl) {
+      simEpochMobileEl.textContent = simulatedDate.toISOString().substring(11, 19) + ' UTC';
     }
 
     // Mission Elapsed Time / Session Time

@@ -19,15 +19,14 @@ body {
 }
 
 #cesiumContainer {
+  position: fixed;
+  inset: 0;
   width: 100vw;
-  height: 100vh;
-  position: absolute;
-  top: 0;
-  left: 0;
+  height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  z-index: 1;
+  z-index: 0;
 }
 
 /* Hide default Cesium widget junk */
@@ -221,3 +220,21 @@ body {
 .hud-ping {
   animation: hudPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/* No-scrollbar utility for smooth touch-scrollable rows */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Mobile responsive rules */
+@media (max-width: 767px) {
+  #hud-zoom-slider-container {
+    display: none !important;
+  }
+}
+

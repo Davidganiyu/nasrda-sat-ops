@@ -97,9 +97,15 @@ export class GlobeManager {
     // Set initial camera view centered on Nigeria & Atlantic Africa
     this.resetCameraToNigeria();
 
-    // Setup resize handler
-    window.addEventListener('resize', () => {
-      this.viewer.resize();
+    // Setup immediate resize & orientation change handler
+    const onResize = () => {
+      if (this.viewer && !this.viewer.isDestroyed()) {
+        this.viewer.resize();
+      }
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(onResize, 120);
     });
   }
 
