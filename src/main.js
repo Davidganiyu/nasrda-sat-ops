@@ -34,6 +34,8 @@ class SatOpsApplication {
     this.simulatedTime = new Date();
     this.lastRealTime = performance.now();
     this.lastPassCalcTime = 0;
+    this.lastPhysicsComputeTime = 0;
+    this.physicsThrottleMs = 100; // 100ms throttle (10 Hz) for Keplerian math
     this.timeScale = 1;
     this.isPaused = false;
 
@@ -62,20 +64,39 @@ class SatOpsApplication {
     // 2. Initialize Tactical Vertical Zoom Slider
     this.zoomSlider = new ZoomSlider({ globeManager: this.globeManager });
 
-    // 3. Initialize Optics (NORMAL, NVG, FLIR) & NASA FIRMS Thermal Sensor Layer
-    this.opticsManager = new OpticsManager(this.globeManager.viewer);
-    this.thermalHotspots = new ThermalHotspotsManager(this.globeManager.viewer);
-
-    // 4. Initialize Boundaries & Facility Beacons
-    this.boundariesManager = new BoundariesManager(this.globeManager.viewer);
-    this.facilityBeacons = new FacilityBeaconsManager(this.globeManager.viewer);
-
-    // 5. Initialize HUD Controller & 2D Polar Sky Radar
+    // 3. Initialize HUD Controller & 2D Polar Sky Radar
     this.hudController = new HudController();
     const radarCanvas = document.getElementById('radarCanvas');
     if (radarCanvas) {
       this.radarScope = new RadarScope(radarCanvas);
     }
+
+    // 4. Initialize Optics (NORMAL, NVG, FLIR) & NASA FIRMS Thermal Sensor Layer
+    this.opticsManager = new OpticsManager(this.globeManager.viewer);
+    this.thermalHotspots = new ThermalHotspotsManager(this.globeManager.viewer, {
+      onSelectHotspot: (spot) => {
+        if (this.hudController) {
+          this.hudController.showHotspotModal(spot);
+          this.hudController.showTrackingBanner(spot.name);
+        }
+        if (this.controlsManager) {
+          this.controlsManager.cameraLocked = false;
+          this.controlsManager._updateCamLockStyles();
+        }
+      },
+      onDeselectHotspot: () => {
+        if (this.hudController) {
+          this.hudController.hideHotspotModal();
+          if (!this.controlsManager || !this.controlsManager.cameraLocked) {
+            this.hudController.hideTrackingBanner();
+          }
+        }
+      }
+    });
+
+    // 5. Initialize Boundaries & Facility Beacons
+    this.boundariesManager = new BoundariesManager(this.globeManager.viewer);
+    this.facilityBeacons = new FacilityBeaconsManager(this.globeManager.viewer);
 
     // 6. Initialize Ground Station Visualizer at Abuja TT&C (8.99° N, 7.39° E)
     this.groundStation = new GroundStationVisualizer(this.globeManager.viewer, GROUND_STATIONS.abuja);
@@ -83,12 +104,70 @@ class SatOpsApplication {
     // 7. Initialize Orbit Trajectory Visualizer
     this.orbitVisualizer = new OrbitVisualizer(this.globeManager.viewer);
 
-    // 7. Initialize Interactive Controls & Keyboard shortcuts
+    // 8. Initialize Interactive Controls & Keyboard shortcuts
     this.controlsManager = new ControlsManager({
       onSatelliteChange: (satId) => this.switchSatellite(satId),
-      onCameraModeChange: (mode, locked) => this.handleCameraModeChange(mode, locked),
-      onLandmarkSelect: (landmark) => this.globeManager.flyToLandmark(landmark),
-      onResetView: () => this.globeManager.resetCameraToNigeria(),
+      onCameraModeChange: (mode, locked) => {
+        this.handleCameraModeChange(mode, locked);
+        if (locked && this.hudController) {
+          this.hudController.showTrackingBanner(this.currentSatConfig.name);
+        } else if (!this.thermalHotspots?.selectedHotspot && this.hudController) {
+          this.hudController.hideTrackingBanner();
+        }
+      },
+      onLandmarkSelect: (landmark) => {
+        this.globeManager.flyToLandmark(landmark);
+        if (this.hudController) {
+          this.hudController.showTrackingBanner(landmark.name);
+        }
+      },
+      onResetView: () => {
+        this.globeManager.resetCameraToNigeria();
+        if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
+        if (this.hudController) {
+          this.hudController.hideTrackingBanner();
+          this.hudController.hideHotspotModal();
+        }
+      },
+      onUnselectView: () => {
+        this.globeManager.resetCameraToNigeria();
+        if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
+        if (this.hudController) {
+          this.hudController.hideTrackingBanner();
+          this.hudController.hideHotspotModal();
+        }
+      },
+      onUnselectHotspot: () => {
+        if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
+        if (this.hudController) {
+          this.hudController.hideHotspotModal();
+          if (!this.controlsManager?.cameraLocked) {
+            this.hudController.hideTrackingBanner();
+          }
+        }
+      },
+      onResetRealtime: () => {
+        this.simulatedTime = new Date();
+        this.timeScale = 1;
+        this.isPaused = false;
+        if (this.satrec && this.currentSatConfig) {
+          const orbitPoints = OrbitalPhysics.generateOrbitPath(this.satrec, this.simulatedTime, this.currentSatConfig);
+          this.orbitVisualizer.updateOrbitPath(orbitPoints, this.currentSatConfig);
+          this.passInfo = OrbitalPhysics.findNextPass(this.satrec, this.simulatedTime, GROUND_STATIONS.abuja, this.currentSatConfig);
+        }
+        this.updateTelemetryStep(this.simulatedTime);
+        this.lastPhysicsComputeTime = performance.now();
+      },
+      onDateChange: (targetDate) => {
+        this.simulatedTime = targetDate;
+        if (this.satrec && this.currentSatConfig) {
+          const orbitPoints = OrbitalPhysics.generateOrbitPath(this.satrec, this.simulatedTime, this.currentSatConfig);
+          this.orbitVisualizer.updateOrbitPath(orbitPoints, this.currentSatConfig);
+          this.passInfo = OrbitalPhysics.findNextPass(this.satrec, this.simulatedTime, GROUND_STATIONS.abuja, this.currentSatConfig);
+        }
+        this.updateTelemetryStep(this.simulatedTime);
+        this.lastPhysicsComputeTime = performance.now();
+      },
       onLayerToggle: (layer, visible) => this.handleLayerToggle(layer, visible),
       onOpticsCycle: () => this.opticsManager.cycle(),
       onTimeScaleChange: (scale, isPaused) => {
@@ -255,8 +334,11 @@ class SatOpsApplication {
         this.simulatedTime = new Date(this.simulatedTime.getTime() + simDeltaMs);
       }
 
-      // Compute frame updates
-      this.updateTelemetryStep(this.simulatedTime);
+      // Throttle SGP4 Keplerian orbital math to run once every 100ms (10 Hz) instead of every WebGL frame
+      if (currentRealTime - this.lastPhysicsComputeTime >= this.physicsThrottleMs) {
+        this.updateTelemetryStep(this.simulatedTime);
+        this.lastPhysicsComputeTime = currentRealTime;
+      }
 
       // Render 2D Radar Canvas
       if (this.radarScope) {

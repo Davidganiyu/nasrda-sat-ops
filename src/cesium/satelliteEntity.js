@@ -65,14 +65,16 @@ export class SatelliteEntity {
         scale: 1.0,
         verticalOrigin: Cesium.VerticalOrigin.CENTER,
         horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-        eyeOffset: new Cesium.Cartesian3(0, 0, -100)
+        eyeOffset: new Cesium.Cartesian3(0, 0, -1000),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
       point: {
         pixelSize: 10,
         color: cesiumColor,
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
-        scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2.0, 8.0e6, 0.8)
+        scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2.0, 8.0e6, 0.8),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
       label: {
         text: `${this.satConfig.name} [${this.satConfig.noradId}]`,
@@ -83,7 +85,8 @@ export class SatelliteEntity {
         outlineWidth: 4,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         pixelOffset: new Cesium.Cartesian2(0, -28),
-        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 1.2e8)
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(100.0, 1.2e8),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
 

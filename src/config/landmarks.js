@@ -11,9 +11,9 @@ export const LANDMARKS = [
     category: 'PRIMARY_TT_C',
     latitude: 8.9925,
     longitude: 7.3986,
-    altitude: 30000, // 30km altitude downward pitch -55°
+    altitude: 40000, // 40km altitude downward pitch -45°
     heading: 0.0,
-    pitch: -55.0,
+    pitch: -45.0,
     roll: 0.0,
     duration: 2.0,
     description: 'Obasanjo Space Centre, Centre for Satellite Technology Development (CSTD) & National Space Operations Center'
@@ -25,9 +25,9 @@ export const LANDMARKS = [
     category: 'ASTROPHYSICS_ATMOSPHERE',
     latitude: 6.8600,
     longitude: 7.4100,
-    altitude: 12000,
+    altitude: 60000, // 60km altitude
     heading: 0.0,
-    pitch: -50.0,
+    pitch: -45.0,
     roll: 0.0,
     duration: 2.0,
     description: 'Centre for Basic Space Science (CBSS), University of Nigeria Nsukka, Enugu State'
@@ -39,9 +39,9 @@ export const LANDMARKS = [
     category: 'GEODESY_SEISMOLOGY',
     latitude: 10.0600,
     longitude: 9.0700,
-    altitude: 14000,
+    altitude: 60000, // 60km altitude
     heading: 0.0,
-    pitch: -55.0,
+    pitch: -45.0,
     roll: 0.0,
     duration: 2.0,
     description: 'Centre for Geodesy & Geodynamics (CGG), Toro, Bauchi State'
@@ -53,9 +53,9 @@ export const LANDMARKS = [
     category: 'ATMOSPHERIC_IONOSPHERE',
     latitude: 7.4900,
     longitude: 7.1800,
-    altitude: 12000,
+    altitude: 60000, // 60km altitude
     heading: 0.0,
-    pitch: -50.0,
+    pitch: -45.0,
     roll: 0.0,
     duration: 2.0,
     description: 'Centre for Atmospheric Research (CAR), Kogi State University, Anyigba'
@@ -67,9 +67,9 @@ export const LANDMARKS = [
     category: 'ROCKETRY_PROPULSION',
     latitude: 6.5800,
     longitude: 3.9800,
-    altitude: 12000,
-    heading: 45.0,
-    pitch: -50.0,
+    altitude: 60000, // 60km altitude
+    heading: 0.0,
+    pitch: -45.0,
     roll: 0.0,
     duration: 2.0,
     description: 'NASRDA Centre for Space Transport & Rocketry (CSTR), Epe, Lagos State'

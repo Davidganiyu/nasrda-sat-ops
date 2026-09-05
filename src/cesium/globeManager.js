@@ -16,7 +16,7 @@ export class GlobeManager {
   }
 
   initViewer() {
-    // Configure Cesium Viewer
+    // Configure Cesium Viewer with mobile WebGL stability options
     this.viewer = new Cesium.Viewer(this.containerId, {
       animation: false,
       timeline: false,
@@ -30,6 +30,8 @@ export class GlobeManager {
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       baseLayerPicker: false,
+      shadows: false,
+      terrainShadows: Cesium.ShadowMode.DISABLED,
       skyBox: new Cesium.SkyBox({
         sources: {
           positiveX: 'https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_px.jpg',
@@ -52,6 +54,14 @@ export class GlobeManager {
 
     const scene = this.viewer.scene;
     const globe = scene.globe;
+
+    // Mobile WebGL Stability & Performance Tuning
+    scene.highDynamicRange = false;
+    if (scene.postProcessStages && scene.postProcessStages.fxaa) {
+      scene.postProcessStages.fxaa.enabled = false;
+    }
+    globe.maximumScreenSpaceError = 2.5; // Fast tile loading and avoid memory bottlenecks
+    scene.fog.enabled = true;
 
     // Tactical Visual Tweaks
     globe.enableLighting = true;
@@ -89,10 +99,11 @@ export class GlobeManager {
     controller.minimumZoomDistance = 1500.0; // 1.5 km
     controller.maximumZoomDistance = 120000000.0; // 120,000 km
     controller.enableCollisionDetection = true;
+    controller.enableZoom = true;
 
-    // High performance rendering
+    // High performance rendering: Cap resolution scale to 1.0 to eliminate retina/4K GPU stalls
     this.viewer.targetFrameRate = 60;
-    this.viewer.resolutionScale = window.devicePixelRatio || 1.0;
+    this.viewer.resolutionScale = Math.min(window.devicePixelRatio || 1.0, 1.0);
 
     // Set initial camera view centered on Nigeria & Atlantic Africa
     this.resetCameraToNigeria();
@@ -130,12 +141,24 @@ export class GlobeManager {
       this.viewer.trackedEntity = undefined;
     } else if (mode === 'track' && satelliteEntity) {
       this.viewer.trackedEntity = satelliteEntity;
-    } else if (mode === 'chase' && satelliteEntity) {
-      this.viewer.trackedEntity = satelliteEntity;
+      const isGeo = (satelliteEntity.name && satelliteEntity.name.includes('NigComSat')) ||
+                    (satelliteEntity.satConfig && satelliteEntity.satConfig.type === 'GEO');
+      const range = isGeo ? 12000000.0 : 2500000.0;
       this.viewer.zoomTo(satelliteEntity, new Cesium.HeadingPitchRange(
         Cesium.Math.toRadians(0),
-        Cesium.Math.toRadians(-25),
-        2500000
+        Cesium.Math.toRadians(-35),
+        range
+      ));
+    } else if (mode === 'chase' && satelliteEntity) {
+      this.viewer.trackedEntity = satelliteEntity;
+      const isGeo = (satelliteEntity.name && satelliteEntity.name.includes('NigComSat')) ||
+                    (satelliteEntity.satConfig && satelliteEntity.satConfig.type === 'GEO');
+      const range = isGeo ? 12000000.0 : 2500000.0;
+      const pitch = isGeo ? Cesium.Math.toRadians(-35) : Cesium.Math.toRadians(-25);
+      this.viewer.zoomTo(satelliteEntity, new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(0),
+        pitch,
+        range
       ));
     } else if (mode === 'topdown' && satelliteEntity) {
       this.viewer.trackedEntity = satelliteEntity;
@@ -146,37 +169,41 @@ export class GlobeManager {
       ));
     } else if (mode === 'ground') {
       this.viewer.trackedEntity = undefined;
-      this.viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(7.3986, 8.9925, 30000.0), // 30km altitude descent over Obasanjo Space Centre
-        orientation: {
-          heading: Cesium.Math.toRadians(0.0),
-          pitch: Cesium.Math.toRadians(-55.0), // downward tactical pitch looking at Earth
-          roll: 0.0
-        },
-        duration: 2.0
+      // Ground Station / NASRDA HQ (Abuja) dead-center at 40,000m altitude (40km), pitch: -45°
+      const abujaCenter = Cesium.Cartesian3.fromDegrees(7.3986, 8.9925, 490.0);
+      const abujaSphere = new Cesium.BoundingSphere(abujaCenter, 10.0);
+      this.viewer.camera.flyToBoundingSphere(abujaSphere, {
+        offset: new Cesium.HeadingPitchRange(
+          Cesium.Math.toRadians(0.0),
+          Cesium.Math.toRadians(-45.0),
+          40000.0
+        ),
+        duration: 2.0,
+        easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
       });
     }
   }
 
   /**
-   * Smooth fly-to navigation for predefined landmarks
+   * Smooth fly-to navigation for predefined landmarks with guaranteed dead-center alignment
    */
   flyToLandmark(landmark) {
     if (!landmark) return;
     this.cameraMode = 'free';
     this.viewer.trackedEntity = undefined;
 
-    this.viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(
-        landmark.longitude,
-        landmark.latitude,
-        landmark.altitude
-      ),
-      orientation: {
-        heading: Cesium.Math.toRadians(landmark.heading || 0.0),
-        pitch: Cesium.Math.toRadians(landmark.pitch || -80.0),
-        roll: Cesium.Math.toRadians(landmark.roll || 0.0)
-      },
+    const center = Cesium.Cartesian3.fromDegrees(
+      landmark.longitude,
+      landmark.latitude,
+      landmark.elevation || 0
+    );
+    const sphere = new Cesium.BoundingSphere(center, 10.0);
+    const heading = Cesium.Math.toRadians(landmark.heading || 0.0);
+    const pitch = Cesium.Math.toRadians(landmark.pitch || -45.0);
+    const range = landmark.altitude || 60000.0;
+
+    this.viewer.camera.flyToBoundingSphere(sphere, {
+      offset: new Cesium.HeadingPitchRange(heading, pitch, range),
       duration: landmark.duration || 2.0,
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
     });

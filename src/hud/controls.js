@@ -251,7 +251,79 @@ export class ControlsManager {
       });
     }
 
-    // 11. Mobile Slide-in Drawers ([INFO] & [RADAR])
+    // 11. Reset to Realtime Instant Snapping
+    const btnResetRealtime = document.getElementById('btn-reset-realtime');
+    if (btnResetRealtime) {
+      btnResetRealtime.addEventListener('click', () => {
+        audio.playClick();
+        this.timeScale = 1;
+        this.isPaused = false;
+        const btn1x = document.querySelector('.time-scale-btn[data-scale="1"]');
+        if (btn1x) this._updateTimeButtonStyles(btn1x);
+        if (this.options.onResetRealtime) {
+          this.options.onResetRealtime();
+        }
+      });
+    }
+
+    // 12. Mission Calendar Date Picker & Quick-Jumps
+    const inputDate = document.getElementById('input-mission-date');
+    if (inputDate) {
+      inputDate.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+          audio.playClick();
+          const targetDate = new Date(`${val}T12:00:00Z`);
+          if (!isNaN(targetDate.getTime()) && this.options.onDateChange) {
+            this.options.onDateChange(targetDate);
+          }
+        }
+      });
+    }
+
+    const jumpBtns = document.querySelectorAll('.time-jump-btn');
+    jumpBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        audio.playClick();
+        const days = parseInt(btn.getAttribute('data-jump'), 10);
+        const now = new Date();
+        const targetDate = new Date(now.getTime() + days * 86400000);
+        if (inputDate) {
+          inputDate.value = targetDate.toISOString().substring(0, 10);
+        }
+        if (this.options.onDateChange) {
+          this.options.onDateChange(targetDate);
+        }
+      });
+    });
+
+    // 13. Unselect / Reset View Button
+    const btnUnselectView = document.getElementById('btn-unselect-view');
+    if (btnUnselectView) {
+      btnUnselectView.addEventListener('click', () => {
+        audio.playClick();
+        this.cameraLocked = false;
+        this.cameraMode = 'free';
+        this._updateCamLockStyles();
+        if (this.options.onUnselectView) {
+          this.options.onUnselectView();
+        }
+      });
+    }
+
+    // 14. Thermal Hotspot Modal Close & Dismiss
+    const btnCloseHotspot = document.getElementById('btn-close-hotspot-modal');
+    const btnDismissHotspot = document.getElementById('btn-hotspot-dismiss');
+    const closeHotspot = () => {
+      audio.playClick();
+      if (this.options.onUnselectHotspot) {
+        this.options.onUnselectHotspot();
+      }
+    };
+    if (btnCloseHotspot) btnCloseHotspot.addEventListener('click', closeHotspot);
+    if (btnDismissHotspot) btnDismissHotspot.addEventListener('click', closeHotspot);
+
+    // 15. Mobile Slide-in Drawers ([TELEMETRY] & [GROUND LINK])
     this.initMobileDrawers();
   }
 

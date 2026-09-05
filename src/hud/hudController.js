@@ -9,6 +9,16 @@ export class HudController {
     this.fpsCount = 0;
     this.lastFpsTime = performance.now();
     this.currentFps = 60;
+    this.perturbationDismissed = false;
+
+    const btnClosePerturbation = document.getElementById('btn-close-perturbation');
+    if (btnClosePerturbation) {
+      btnClosePerturbation.addEventListener('click', () => {
+        this.perturbationDismissed = true;
+        const badge = document.getElementById('hud-perturbation-badge');
+        if (badge) badge.classList.add('hidden');
+      });
+    }
   }
 
   /**
@@ -29,26 +39,42 @@ export class HudController {
     this._updatePassPredictor(passInfo, simulatedDate);
     this._updateSatelliteOverview(satConfig, tleInfo);
     this._updateFps();
+    this.checkPerturbationNotice(simulatedDate);
+  }
+
+  _formatWat(date) {
+    // Nigerian Local Time is West Africa Time (WAT = UTC+1)
+    const watTime = new Date(date.getTime() + 3600000);
+    const iso = watTime.toISOString();
+    return `${iso.substring(0, 10)} ${iso.substring(11, 19)}`;
   }
 
   _updateClocks(simulatedDate) {
     const realNow = new Date();
 
-    // 1. REALTIME UTC
+    // 1. REALTIME (WAT & UTC)
+    const realtimeWatEl = document.getElementById('hud-realtime-wat');
     const realtimeUtcEl = document.getElementById('hud-realtime-utc');
+    if (realtimeWatEl) {
+      realtimeWatEl.textContent = this._formatWat(realNow);
+    }
     if (realtimeUtcEl) {
-      realtimeUtcEl.textContent = realNow.toISOString().substring(11, 19) + ' UTC';
+      realtimeUtcEl.textContent = `(${realNow.toISOString().substring(11, 19)} UTC)`;
     }
 
     // 2. SIMULATION EPOCH (Desktop & Mobile)
+    const simWatEl = document.getElementById('hud-sim-wat');
     const simEpochEl = document.getElementById('hud-sim-epoch');
     const simEpochMobileEl = document.getElementById('hud-sim-epoch-mobile');
-    const simStr = simulatedDate.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+
+    if (simWatEl) {
+      simWatEl.textContent = this._formatWat(simulatedDate);
+    }
     if (simEpochEl) {
-      simEpochEl.textContent = simStr;
+      simEpochEl.textContent = `(${simulatedDate.toISOString().substring(11, 19)} UTC)`;
     }
     if (simEpochMobileEl) {
-      simEpochMobileEl.textContent = simulatedDate.toISOString().substring(11, 19) + ' UTC';
+      simEpochMobileEl.textContent = `${this._formatWat(simulatedDate).substring(11, 19)} WAT`;
     }
 
     // Mission Elapsed Time / Session Time
@@ -221,6 +247,56 @@ export class HudController {
     const el = document.getElementById(elementId);
     if (el && el.textContent !== text) {
       el.textContent = text;
+    }
+  }
+
+  showTrackingBanner(targetName) {
+    const banner = document.getElementById('hud-tracking-banner');
+    const title = document.getElementById('hud-tracking-title');
+    if (banner && title) {
+      title.textContent = `TRACKING: ${targetName.toUpperCase()}`;
+      banner.classList.remove('hidden');
+    }
+  }
+
+  hideTrackingBanner() {
+    const banner = document.getElementById('hud-tracking-banner');
+    if (banner) {
+      banner.classList.add('hidden');
+    }
+  }
+
+  showHotspotModal(spot) {
+    const modal = document.getElementById('hud-hotspot-modal');
+    if (!modal || !spot) return;
+
+    this._setText('hotspot-name', spot.name);
+    this._setText('hotspot-region', spot.region);
+    this._setText('hotspot-coords', `${spot.lat.toFixed(4)}°N, ${spot.lon.toFixed(4)}°E`);
+    this._setText('hotspot-sensor', spot.satellite);
+    this._setText('hotspot-frp', `${spot.frpMw.toFixed(1)} MW`);
+    this._setText('hotspot-confidence', `${spot.brightnessK.toFixed(1)} K / ${spot.confidence}%`);
+
+    modal.classList.remove('hidden');
+  }
+
+  hideHotspotModal() {
+    const modal = document.getElementById('hud-hotspot-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  }
+
+  checkPerturbationNotice(simulatedDate) {
+    const badge = document.getElementById('hud-perturbation-badge');
+    if (!badge || this.perturbationDismissed) return;
+
+    const realNow = new Date();
+    const diffDays = Math.abs(simulatedDate.getTime() - realNow.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > 7) {
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
     }
   }
 }

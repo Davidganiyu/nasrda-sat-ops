@@ -140,12 +140,23 @@ export const NIGERIA_FIRMS_HOTSPOTS = [
 export class ThermalHotspotsManager {
   /**
    * @param {Cesium.Viewer} viewer 
+   * @param {Object} options
+   * @param {Function} options.onSelectHotspot
+   * @param {Function} options.onDeselectHotspot
    */
-  constructor(viewer) {
+  constructor(viewer, options = {}) {
     this.viewer = viewer;
+    this.options = options;
+    this.onSelectHotspot = options.onSelectHotspot || null;
+    this.onDeselectHotspot = options.onDeselectHotspot || null;
     this.entities = [];
     this.visible = false; // toggled via HUD
+    this.selectedHotspot = null;
+    this.reticleEntity = null;
+    this.handler = null;
+
     this.initHotspots();
+    this.initPickingHandler();
   }
 
   _generateFireSvg() {
@@ -175,7 +186,8 @@ export class ThermalHotspotsManager {
           image: fireIcon,
           scale: 0.9,
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         label: {
           text: `[FIRMS] ${spot.name} (${spot.frpMw} MW)`,
@@ -186,7 +198,8 @@ export class ThermalHotspotsManager {
           outlineWidth: 3,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -18),
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(500.0, 1.5e6)
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(500.0, 1.5e6),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         description: `
           <div style="font-family: monospace; color: #fff; padding: 4px;">
@@ -200,6 +213,8 @@ export class ThermalHotspotsManager {
           </div>
         `
       });
+      // Attach hotspot data for click detection
+      marker.firmsData = spot;
 
       // 2. Radiating Thermal Ground Anomaly Circle
       const radiusMeters = spot.frpMw > 100 ? 12000 : 7000;
@@ -216,9 +231,90 @@ export class ThermalHotspotsManager {
           height: 50.0
         }
       });
+      ring.firmsData = spot;
 
       this.entities.push(marker, ring);
     });
+  }
+
+  initPickingHandler() {
+    this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
+    this.handler.setInputAction((movement) => {
+      if (!this.visible) return;
+
+      const pickedObject = this.viewer.scene.pick(movement.position);
+      if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.firmsData) {
+        this.selectHotspot(pickedObject.id.firmsData);
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  /**
+   * Fly to hotspot at state level (280 km) centered and render pulsing reticle ring
+   */
+  selectHotspot(spot) {
+    if (!spot) return;
+    this.selectedHotspot = spot;
+
+    // Smoothly fly camera over the hotspot at State-Level altitude (~280,000m / 280 km) with point centered
+    const center = Cesium.Cartesian3.fromDegrees(spot.lon, spot.lat, 0);
+    const sphere = new Cesium.BoundingSphere(center, 10.0);
+    this.viewer.camera.flyToBoundingSphere(sphere, {
+      offset: new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(0.0),
+        Cesium.Math.toRadians(-80.0),
+        280000.0 // 280 km
+      ),
+      duration: 2.0,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+    });
+
+    // Render pulsing circular reticle/ring around the selected hotspot
+    if (this.reticleEntity) {
+      this.viewer.entities.remove(this.reticleEntity);
+      this.reticleEntity = null;
+    }
+
+    const pulseStart = performance.now();
+    this.reticleEntity = this.viewer.entities.add({
+      name: `Target Reticle: ${spot.name}`,
+      position: Cesium.Cartesian3.fromDegrees(spot.lon, spot.lat, 100),
+      ellipse: {
+        semiMinorAxis: new Cesium.CallbackProperty(() => {
+          const t = ((performance.now() - pulseStart) % 1800) / 1800;
+          return 8000 + t * 16000;
+        }, false),
+        semiMajorAxis: new Cesium.CallbackProperty(() => {
+          const t = ((performance.now() - pulseStart) % 1800) / 1800;
+          return 8000 + t * 16000;
+        }, false),
+        material: new Cesium.ColorMaterialProperty(
+          new Cesium.CallbackProperty(() => {
+            const t = ((performance.now() - pulseStart) % 1800) / 1800;
+            return Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.65 * (1 - t) + 0.1);
+          }, false)
+        ),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#facc15'),
+        outlineWidth: 2.0,
+        height: 100.0
+      }
+    });
+
+    if (this.onSelectHotspot) {
+      this.onSelectHotspot(spot);
+    }
+  }
+
+  unselectHotspot() {
+    this.selectedHotspot = null;
+    if (this.reticleEntity) {
+      this.viewer.entities.remove(this.reticleEntity);
+      this.reticleEntity = null;
+    }
+    if (this.onDeselectHotspot) {
+      this.onDeselectHotspot();
+    }
   }
 
   setVisible(visible) {
@@ -226,10 +322,29 @@ export class ThermalHotspotsManager {
     this.entities.forEach(ent => {
       ent.show = visible;
     });
+    if (!visible && this.reticleEntity) {
+      this.unselectHotspot();
+    }
   }
 
   toggle() {
     this.setVisible(!this.visible);
     return this.visible;
   }
+
+  destroy() {
+    if (this.handler && !this.handler.isDestroyed()) {
+      this.handler.destroy();
+      this.handler = null;
+    }
+    if (this.reticleEntity) {
+      this.viewer.entities.remove(this.reticleEntity);
+      this.reticleEntity = null;
+    }
+    this.entities.forEach(ent => {
+      this.viewer.entities.remove(ent);
+    });
+    this.entities = [];
+  }
 }
+

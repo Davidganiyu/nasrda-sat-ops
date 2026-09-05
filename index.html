@@ -82,7 +82,8 @@
         <!-- Clocks on Mobile (Compact) -->
         <div class="flex items-center gap-2 text-xs font-mono md:hidden">
           <div class="text-right">
-            <div id="hud-sim-epoch-mobile" class="text-[10px] text-cyan-300 font-bold tracking-wider">--:--:-- UTC</div>
+            <div class="text-[8px] text-slate-400 leading-none">WAT (UTC+1)</div>
+            <div id="hud-sim-epoch-mobile" class="text-[10px] text-cyan-300 font-bold tracking-wider">--:--:-- WAT</div>
           </div>
           <button id="btn-toggle-hud-mobile" class="px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 transition-all" title="Toggle HUD visibility [H]">
             [H]
@@ -112,12 +113,14 @@
       <div class="hidden md:flex items-center gap-4 text-xs font-mono flex-shrink-0">
         <div class="text-right">
           <div class="flex items-center justify-end gap-1.5 text-[10px] text-slate-400">
-            <span>REALTIME:</span>
-            <span id="hud-realtime-utc" class="text-slate-200 font-bold tracking-wider">--:--:-- UTC</span>
+            <span class="text-slate-400 font-semibold">REALTIME (WAT):</span>
+            <span id="hud-realtime-wat" class="text-slate-200 font-bold tracking-wider">--:--:--</span>
+            <span id="hud-realtime-utc" class="text-[9px] text-slate-500 tracking-normal font-mono">(--:--:-- UTC)</span>
           </div>
           <div class="flex items-center justify-end gap-1.5">
-            <span class="text-[10px] text-cyan-400 font-bold">SIM EPOCH:</span>
-            <span id="hud-sim-epoch" class="text-cyan-300 font-bold tracking-wider text-glow-cyan">----/--/-- --:--:-- UTC</span>
+            <span class="text-[10px] text-cyan-400 font-bold">SIM EPOCH (WAT):</span>
+            <span id="hud-sim-wat" class="text-cyan-300 font-bold tracking-wider text-glow-cyan">----/--/-- --:--:--</span>
+            <span id="hud-sim-epoch" class="text-[9px] text-cyan-500/80 font-mono tracking-normal">(--:--:-- UTC)</span>
           </div>
         </div>
 
@@ -145,7 +148,7 @@
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
-        <span>INFO</span>
+        <span>[TELEMETRY]</span>
       </button>
 
       <button id="btn-open-radar-drawer" class="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold rounded-full hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan active:scale-95 transition-all">
@@ -154,8 +157,70 @@
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
           <path d="M2 12h20"></path>
         </svg>
-        <span>RADAR</span>
+        <span>[GROUND LINK]</span>
       </button>
+    </div>
+
+    <!-- Floating Active Tracking / Target Release Banner -->
+    <div id="hud-tracking-banner" class="hidden fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full hud-glass-panel border border-cyan-400 shadow-glow-cyan">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+      <span id="hud-tracking-title" class="text-xs font-mono font-bold text-cyan-300">TRACKING: NIGCOMSAT-1R</span>
+      <button id="btn-unselect-view" class="px-2.5 py-0.5 text-[10px] font-mono font-black uppercase rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-400 text-cyan-200 transition-all active:scale-95 shadow-glow-cyan">
+        [UNSELECT / RESET VIEW]
+      </button>
+    </div>
+
+    <!-- Floating Thermal Hotspot Anomaly Detected Card -->
+    <div id="hud-hotspot-modal" class="hidden fixed top-24 right-4 md:right-16 z-40 max-w-sm w-[90vw] md:w-84 hud-glass-panel rounded-lg p-3 border border-amber-500/80 shadow-glow-amber pointer-events-auto transition-all">
+      <div class="hud-bracket-tl"></div>
+      <div class="hud-bracket-tr"></div>
+      <div class="hud-bracket-bl"></div>
+      <div class="hud-bracket-br"></div>
+
+      <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-amber-500/40">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+          <span class="text-xs font-black font-display tracking-wider text-amber-400 text-glow-amber">THERMAL ANOMALY DETECTED</span>
+        </div>
+        <button id="btn-close-hotspot-modal" class="text-slate-400 hover:text-white text-xs font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-1.5 text-xs font-mono">
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase">ANOMALY DESIGNATION:</div>
+          <div id="hotspot-name" class="font-bold text-slate-100 text-sm">--</div>
+        </div>
+        <div>
+          <div class="text-[9px] text-slate-400 uppercase">GEOGRAPHIC REGION:</div>
+          <div id="hotspot-region" class="text-amber-300 font-semibold text-[11px]">--</div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 bg-slate-950/80 p-2 rounded border border-amber-500/30">
+          <div>
+            <div class="text-[9px] text-slate-400">COORDINATES:</div>
+            <div id="hotspot-coords" class="font-bold text-slate-200">--</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400">DETECTION SENSOR:</div>
+            <div id="hotspot-sensor" class="font-bold text-cyan-300">--</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400">FIRE POWER (FRP):</div>
+            <div id="hotspot-frp" class="font-bold text-red-400 text-sm">-- MW</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400">BRIGHTNESS / CONF:</div>
+            <div id="hotspot-confidence" class="font-bold text-amber-300">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2.5 flex items-center justify-between gap-2">
+        <button id="btn-hotspot-dismiss" class="w-full px-2 py-1 text-[11px] font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500">
+          [DISMISS / UNSELECT]
+        </button>
+      </div>
     </div>
 
     <!-- Mobile Drawer Backdrop Overlay -->
@@ -512,10 +577,11 @@
           </button>
         </div>
 
-        <!-- Optics Mode Cycler & Simulation Warp Rate -->
+        <!-- Time Warp Controls & Reset to Realtime -->
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <button id="btn-cycle-optics" class="px-2.5 py-1 text-xs font-mono rounded bg-slate-900 text-slate-300 border border-slate-700 hover:border-slate-500 flex items-center gap-1.5">
-            OPTICS: NORMAL
+          <button id="btn-reset-realtime" class="px-2.5 py-1 text-xs font-mono font-bold rounded bg-amber-950/90 border border-amber-400 text-amber-300 shadow-glow-amber hover:bg-amber-900 transition-all flex items-center gap-1 active:scale-95" title="Instantly reset simulation to the exact live second">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+            <span>[RESET TO REALTIME]</span>
           </button>
 
           <!-- Simulation Warp Rate Controls -->
@@ -537,8 +603,33 @@
               300x
             </button>
           </div>
+        </div>
 
-          <!-- Audio & Export Utilities -->
+        <!-- Mission Calendar & Forward/Historical Navigation -->
+        <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded border border-slate-800 text-xs flex-shrink-0">
+          <span class="text-[9px] text-cyan-400 font-bold px-1 flex items-center gap-1">
+            <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            CALENDAR:
+          </span>
+          <input type="date" id="input-mission-date" class="bg-slate-900 text-cyan-300 text-[10px] font-mono px-1 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-cyan-400 cursor-pointer">
+          <button data-jump="-30" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40">-30D</button>
+          <button data-jump="-7" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40">-7D</button>
+          <button data-jump="0" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-cyan-950/70 text-cyan-300 border border-cyan-500/40 hover:text-white">TODAY</button>
+          <button data-jump="7" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40">+7D</button>
+          <button data-jump="30" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40">+30D</button>
+          <button data-jump="90" class="time-jump-btn px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-cyan-300 hover:border-cyan-500/40">+90D</button>
+        </div>
+
+        <!-- Optics Mode Cycler & Export Utilities -->
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button id="btn-cycle-optics" class="px-2.5 py-1 text-xs font-mono rounded bg-slate-900 text-slate-300 border border-slate-700 hover:border-slate-500 flex items-center gap-1.5">
+            OPTICS: NORMAL
+          </button>
           <button id="btn-toggle-audio" class="px-2 py-1 text-xs font-mono rounded bg-cyan-950 text-cyan-400 border border-cyan-500 shadow-glow-cyan hover:border-cyan-300 transition-all">
             AUDIO: ON
           </button>
@@ -553,6 +644,18 @@
         </div>
       </div>
     </footer>
+
+    <!-- Orbital Perturbation / Accuracy Disclaimer Floating Badge -->
+    <div id="hud-perturbation-badge" class="hidden fixed bottom-14 md:bottom-16 left-1/2 -translate-x-1/2 z-30 max-w-xl w-[92vw] md:w-auto px-3 py-1.5 rounded-lg hud-glass-panel border border-amber-500/80 bg-slate-950/95 shadow-glow-amber pointer-events-auto text-[10px] font-mono text-amber-200 flex items-start gap-2">
+      <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div>
+        <span class="font-bold text-amber-300 uppercase">PROPAGATION ACCURACY NOTICE:</span>
+        <span>Ephemeris predictions diverge beyond &plusmn;7-14 days due to unmodeled orbital perturbations: Atmospheric Drag (solar flux variations), Solar Radiation Pressure, Gravitational anomalies (J2/J4 geopotential harmonics), and active station-keeping thruster burns by ground operators.</span>
+      </div>
+      <button id="btn-close-perturbation" class="ml-1 text-slate-400 hover:text-white text-xs font-mono px-1 rounded bg-slate-900 border border-slate-700">✕</button>
+    </div>
 
   </div>
 
