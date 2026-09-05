@@ -78,7 +78,7 @@
       </div>
 
       <!-- Satellite Constellation Selector Pills -->
-      <div class="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-md border border-slate-800">
+      <div class="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-md border border-slate-800 flex-wrap">
         <button data-sat-id="nigcomsat-1r" class="sat-select-btn px-3 py-1.5 text-xs font-bold font-mono rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400 shadow-glow-cyan transition-all">
           NIGCOMSAT-1R <span class="text-[10px] text-cyan-400/80">[GEO 42.5°E]</span>
         </button>
@@ -87,6 +87,9 @@
         </button>
         <button data-sat-id="nigeriasat-x" class="sat-select-btn px-3 py-1.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700/60 hover:text-slate-200 hover:border-slate-500 transition-all">
           NIGERIASAT-X <span class="text-[10px] text-amber-400/80">[LEO SSO]</span>
+        </button>
+        <button data-sat-id="eos-1-sar" class="sat-select-btn px-3 py-1.5 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700/60 hover:text-slate-200 hover:border-slate-500 transition-all">
+          EOS-1 / SAR-1 <span class="text-[10px] text-pink-400/80">[PLANNED]</span>
         </button>
       </div>
 
@@ -236,6 +239,41 @@
             </div>
           </div>
         </div>
+
+        <!-- FEC-Approved Upcoming Constellation Card -->
+        <div class="hud-glass-panel rounded-lg p-2.5 relative border border-pink-500/30">
+          <div class="hud-bracket-tl"></div>
+          <div class="hud-bracket-bl"></div>
+
+          <div class="text-[11px] font-bold text-pink-400 tracking-wider flex items-center justify-between mb-1.5">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse"></span>
+              FEC-APPROVED CONSTELLATION
+            </span>
+            <span class="text-[9px] px-1 py-0.5 rounded bg-pink-950/80 border border-pink-500/40 text-pink-300 font-mono">NEXT-GEN</span>
+          </div>
+
+          <div class="bg-slate-950/70 p-1.5 rounded border border-slate-800/80 mb-1.5">
+            <div class="flex items-center justify-between text-xs font-bold font-mono text-pink-300">
+              <span>EOS-1 / SAR-1 CONST.</span>
+              <span class="text-[10px] text-amber-300">PHASE-D DEV</span>
+            </div>
+            <p class="text-[10px] text-slate-300 font-sans leading-relaxed mt-1">
+              Federal Executive Council approved Earth Observation & Synthetic Aperture Radar (SAR) dual constellation for border defense, all-weather day/night radar imaging, maritime AIS surveillance, and precision agriculture.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1 text-[9px] font-mono text-slate-400">
+            <div class="bg-slate-900/60 p-1 rounded border border-slate-800/60">
+              <span class="block text-slate-500">PAYLOAD:</span>
+              <span class="text-slate-200 font-bold truncate">X-Band SAR + Hyperspectral</span>
+            </div>
+            <div class="bg-slate-900/60 p-1 rounded border border-slate-800/60">
+              <span class="block text-slate-500">ORBIT:</span>
+              <span class="text-slate-200 font-bold">Dawn-Dusk SSO 550km</span>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <!-- RIGHT HUD: ABUJA GROUND STATION & TACTICAL POLAR RADAR -->
@@ -379,8 +417,11 @@
           <span class="text-[9px] text-cyan-400 font-bold px-1">FLY-TO:</span>
           <select id="select-landmark" class="bg-slate-900 text-slate-200 text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 focus:outline-none focus:border-cyan-400 cursor-pointer">
             <option value="">-- SELECT LANDMARK --</option>
-            <option value="abuja-ttc">NASRDA HQ / TT&C (Abuja)</option>
-            <option value="lagos-offshore">Lagos Offshore / Gulf of Guinea</option>
+            <option value="abuja-ttc">NASRDA HQ / CSTD (Abuja)</option>
+            <option value="enugu-cbss">Centre for Basic Space Science (CBSS, Nsukka)</option>
+            <option value="bauchi-cgg">Centre for Geodesy & Geodynamics (CGG, Toro)</option>
+            <option value="kogi-car">Centre for Atmospheric Research (CAR, Anyigba)</option>
+            <option value="lagos-cstr">Centre for Space Transport & Rocketry (CSTR, Epe)</option>
             <option value="nigeria-extent">Nigeria National Extent</option>
             <option value="geo-orbit">Deep Space Orbit (GEO 42.5°E)</option>
           </select>
@@ -390,6 +431,9 @@
       <!-- Sensor & Tactical Layer Toggles -->
       <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded border border-slate-800 text-xs flex-wrap">
         <span class="text-[9px] text-slate-500 px-1 font-bold">LAYERS:</span>
+        <button id="toggle-boundaries-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/60 shadow-glow-cyan">
+          BOUNDARIES
+        </button>
         <button id="toggle-orbit-layer" class="layer-btn px-2 py-1 text-xs font-mono rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/60">
           3D ORBIT
         </button>

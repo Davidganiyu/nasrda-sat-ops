@@ -138,21 +138,16 @@ export class GlobeManager {
         Cesium.Math.toRadians(-89.9),
         4500000
       ));
-    } else if (mode === 'ground' && groundStationPosition) {
+    } else if (mode === 'ground') {
       this.viewer.trackedEntity = undefined;
-      const gsCart = Cesium.Cartesian3.fromDegrees(
-        groundStationPosition.longitude,
-        groundStationPosition.latitude,
-        groundStationPosition.altitude * 1000 + 150
-      );
       this.viewer.camera.flyTo({
-        destination: gsCart,
+        destination: Cesium.Cartesian3.fromDegrees(7.3986, 8.9925, 30000.0), // 30km altitude descent over Obasanjo Space Centre
         orientation: {
-          heading: Cesium.Math.toRadians(45.0),
-          pitch: Cesium.Math.toRadians(25.0),
+          heading: Cesium.Math.toRadians(0.0),
+          pitch: Cesium.Math.toRadians(-55.0), // downward tactical pitch looking at Earth
           roll: 0.0
         },
-        duration: 1.5
+        duration: 2.0
       });
     }
   }

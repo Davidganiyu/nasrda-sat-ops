@@ -29,6 +29,7 @@ export class ControlsManager {
     this.hudVisible = true;
     this.opticsMode = 'NORMAL';
     this.layers = {
+      boundaries: true,
       orbit: true,
       footprint: true,
       groundLink: true,
@@ -123,6 +124,16 @@ export class ControlsManager {
     }
 
     // 6. Layer Visibility Toggles
+    const toggleBoundariesBtn = document.getElementById('toggle-boundaries-layer');
+    if (toggleBoundariesBtn) {
+      toggleBoundariesBtn.addEventListener('click', () => {
+        audio.playClick();
+        this.layers.boundaries = !this.layers.boundaries;
+        this._toggleBtnStyle(toggleBoundariesBtn, this.layers.boundaries);
+        if (this.options.onLayerToggle) this.options.onLayerToggle('boundaries', this.layers.boundaries);
+      });
+    }
+
     const toggleOrbitBtn = document.getElementById('toggle-orbit-layer');
     if (toggleOrbitBtn) {
       toggleOrbitBtn.addEventListener('click', () => {

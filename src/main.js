@@ -15,6 +15,8 @@ import { FootprintCone } from './cesium/footprintCone.js';
 import { GroundStationVisualizer } from './cesium/groundStation.js';
 import { ThermalHotspotsManager } from './cesium/thermalHotspots.js';
 import { OpticsManager } from './cesium/opticsManager.js';
+import { BoundariesManager } from './cesium/boundariesManager.js';
+import { FacilityBeaconsManager } from './cesium/facilityBeacons.js';
 import { RadarScope } from './hud/radarScope.js';
 import { HudController } from './hud/hudController.js';
 import { ControlsManager } from './hud/controls.js';
@@ -64,17 +66,21 @@ class SatOpsApplication {
     this.opticsManager = new OpticsManager(this.globeManager.viewer);
     this.thermalHotspots = new ThermalHotspotsManager(this.globeManager.viewer);
 
-    // 4. Initialize HUD Controller & 2D Polar Sky Radar
+    // 4. Initialize Boundaries & Facility Beacons
+    this.boundariesManager = new BoundariesManager(this.globeManager.viewer);
+    this.facilityBeacons = new FacilityBeaconsManager(this.globeManager.viewer);
+
+    // 5. Initialize HUD Controller & 2D Polar Sky Radar
     this.hudController = new HudController();
     const radarCanvas = document.getElementById('radarCanvas');
     if (radarCanvas) {
       this.radarScope = new RadarScope(radarCanvas);
     }
 
-    // 5. Initialize Ground Station Visualizer at Abuja TT&C (8.99° N, 7.39° E)
+    // 6. Initialize Ground Station Visualizer at Abuja TT&C (8.99° N, 7.39° E)
     this.groundStation = new GroundStationVisualizer(this.globeManager.viewer, GROUND_STATIONS.abuja);
 
-    // 6. Initialize Orbit Trajectory Visualizer
+    // 7. Initialize Orbit Trajectory Visualizer
     this.orbitVisualizer = new OrbitVisualizer(this.globeManager.viewer);
 
     // 7. Initialize Interactive Controls & Keyboard shortcuts
@@ -187,6 +193,8 @@ class SatOpsApplication {
       this.groundStation.setVisible(visible);
     } else if (layer === 'firms' && this.thermalHotspots) {
       this.thermalHotspots.setVisible(visible);
+    } else if (layer === 'boundaries' && this.boundariesManager) {
+      this.boundariesManager.setVisible(visible);
     }
   }
 

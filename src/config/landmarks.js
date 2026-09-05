@@ -6,31 +6,73 @@
 export const LANDMARKS = [
   {
     id: 'abuja-ttc',
-    name: 'NASRDA HQ / TT&C (Abuja)',
-    shortName: 'ABUJA TT&C',
-    category: 'GROUND_STATION',
-    latitude: 8.9900,
-    longitude: 7.3900,
-    altitude: 3500, // meters
+    name: 'NASRDA HQ / CSTD (Abuja)',
+    shortName: 'NASRDA HQ / CSTD',
+    category: 'PRIMARY_TT_C',
+    latitude: 8.9925,
+    longitude: 7.3986,
+    altitude: 30000, // 30km altitude downward pitch -55°
     heading: 0.0,
-    pitch: -35.0, // degrees
+    pitch: -55.0,
     roll: 0.0,
     duration: 2.0,
-    description: 'CSTD Primary Telemetry, Tracking & Command Ground Station Facility'
+    description: 'Obasanjo Space Centre, Centre for Satellite Technology Development (CSTD) & National Space Operations Center'
   },
   {
-    id: 'lagos-offshore',
-    name: 'Lagos Offshore / Gulf of Guinea',
-    shortName: 'LAGOS OFFSHORE',
-    category: 'MARITIME_OBSERVATION',
-    latitude: 6.4200,
-    longitude: 3.4200,
-    altitude: 15000, // meters
-    heading: 45.0,
-    pitch: -45.0,
+    id: 'enugu-cbss',
+    name: 'Centre for Basic Space Science (CBSS, Nsukka)',
+    shortName: 'CBSS (NSUKKA)',
+    category: 'ASTROPHYSICS_ATMOSPHERE',
+    latitude: 6.8600,
+    longitude: 7.4100,
+    altitude: 12000,
+    heading: 0.0,
+    pitch: -50.0,
     roll: 0.0,
     duration: 2.0,
-    description: 'Bight of Benin maritime shipping channel & offshore energy corridor'
+    description: 'Centre for Basic Space Science (CBSS), University of Nigeria Nsukka, Enugu State'
+  },
+  {
+    id: 'bauchi-cgg',
+    name: 'Centre for Geodesy & Geodynamics (CGG, Toro)',
+    shortName: 'CGG (TORO)',
+    category: 'GEODESY_SEISMOLOGY',
+    latitude: 10.0600,
+    longitude: 9.0700,
+    altitude: 14000,
+    heading: 0.0,
+    pitch: -55.0,
+    roll: 0.0,
+    duration: 2.0,
+    description: 'Centre for Geodesy & Geodynamics (CGG), Toro, Bauchi State'
+  },
+  {
+    id: 'kogi-car',
+    name: 'Centre for Atmospheric Research (CAR, Anyigba)',
+    shortName: 'CAR (ANYIGBA)',
+    category: 'ATMOSPHERIC_IONOSPHERE',
+    latitude: 7.4900,
+    longitude: 7.1800,
+    altitude: 12000,
+    heading: 0.0,
+    pitch: -50.0,
+    roll: 0.0,
+    duration: 2.0,
+    description: 'Centre for Atmospheric Research (CAR), Kogi State University, Anyigba'
+  },
+  {
+    id: 'lagos-cstr',
+    name: 'Centre for Space Transport & Rocketry (CSTR, Epe)',
+    shortName: 'CSTR (EPE)',
+    category: 'ROCKETRY_PROPULSION',
+    latitude: 6.5800,
+    longitude: 3.9800,
+    altitude: 12000,
+    heading: 45.0,
+    pitch: -50.0,
+    roll: 0.0,
+    duration: 2.0,
+    description: 'NASRDA Centre for Space Transport & Rocketry (CSTR), Epe, Lagos State'
   },
   {
     id: 'nigeria-extent',

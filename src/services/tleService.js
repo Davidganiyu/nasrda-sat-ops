@@ -18,6 +18,18 @@ export class TleService {
     const noradId = satelliteConfig.noradId;
     const cacheKey = `${CACHE_KEY_PREFIX}${noradId}`;
     
+    // If planned mission, return the official simulated TLE directly without delay
+    if (satelliteConfig.launchDate && satelliteConfig.launchDate.includes('PLANNED')) {
+      return {
+        name: satelliteConfig.name,
+        line1: satelliteConfig.defaultTle.line1,
+        line2: satelliteConfig.defaultTle.line2,
+        isLive: false,
+        timestamp: new Date().toISOString(),
+        source: 'FEC Planned Constellation Catalog'
+      };
+    }
+
     // Check cached TLE
     try {
       const cached = localStorage.getItem(cacheKey);
