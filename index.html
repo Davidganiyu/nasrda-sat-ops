@@ -186,6 +186,9 @@
     <div id="hud-tracking-banner" class="hidden fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full hud-glass-panel border border-cyan-400 shadow-glow-cyan">
       <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
       <span id="hud-tracking-title" class="text-xs font-mono font-bold text-cyan-300">TRACKING: NIGCOMSAT-1R</span>
+      <button id="btn-banner-pan-center" class="px-2 py-0.5 text-[10px] font-mono font-black uppercase rounded bg-slate-900 hover:bg-cyan-950 border border-cyan-500/70 text-cyan-300 transition-all active:scale-95 shadow-glow-cyan" title="Pan horizontally to center active target preserving current altitude">
+        [PAN-TO-CENTER]
+      </button>
       <button id="btn-unselect-view" class="px-2.5 py-0.5 text-[10px] font-mono font-black uppercase rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-400 text-cyan-200 transition-all active:scale-95 shadow-glow-cyan">
         [UNSELECT / RESET VIEW]
       </button>
@@ -356,7 +359,7 @@
           
           <div class="flex items-center justify-between mb-1">
             <span id="sat-name-banner" class="text-sm font-black text-glow-cyan text-cyan-300 font-display">NIGCOMSAT-1R</span>
-            <span id="sat-norad-banner" class="px-1.5 py-0.5 text-[10px] font-bold bg-slate-900 border border-slate-700 text-slate-300 rounded">NORAD: 37950</span>
+            <span id="sat-norad-banner" class="px-1.5 py-0.5 text-[10px] font-bold bg-slate-900 border border-slate-700 text-slate-300 rounded">NORAD: 38014</span>
           </div>
 
           <div id="sat-type-banner" class="text-[11px] text-cyan-400/90 font-semibold mb-1">Geostationary Orbit (42.5° E)</div>

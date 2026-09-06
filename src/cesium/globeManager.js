@@ -28,6 +28,9 @@ export class GlobeManager {
     this.isCurrentSatGeo = false;
     this.chaseZoomScale = 1.0;
     this.handler = null;
+    this.activeAlertReticleEntity = null;
+    this.activeAlertPulseEntity = null;
+    this.activeAlertCoordinates = null;
 
     this.initViewer();
     this.initPickingHandler();
@@ -201,6 +204,7 @@ export class GlobeManager {
   resetCameraToNigeria() {
     this.cameraMode = 'free';
     this.viewer.trackedEntity = undefined;
+    this.clearActiveAlert();
     this.viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(7.3900, 8.9900, 12000000.0),
       orientation: {
@@ -489,6 +493,112 @@ export class GlobeManager {
         this.viewer.entities.remove(reticleEntity);
       }
     }, durationMs);
+  }
+
+  /**
+   * Set and display a persistent tactical reticle and marker for an AI mission intelligence alert.
+   * Remains active until cleared via clearActiveAlert() or resetAllViews().
+   * @param {Object} alert Alert object with coordinates and title
+   */
+  setActiveAlert(alert) {
+    if (!alert) return;
+    this.clearActiveAlert();
+
+    const lat = alert.coordinates?.lat !== undefined ? alert.coordinates.lat : alert.lat;
+    const lon = alert.coordinates?.lon !== undefined ? alert.coordinates.lon : alert.lon;
+    if (lat === undefined || lon === undefined) return;
+
+    this.activeAlertCoordinates = { lon, lat, title: alert.title || 'ACTIVE INCIDENT' };
+
+    const crosshairSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="28" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4"/>
+      <circle cx="32" cy="32" r="14" fill="none" stroke="#f59e0b" stroke-width="2"/>
+      <circle cx="32" cy="32" r="4" fill="#ef4444"/>
+      <line x1="32" y1="2" x2="32" y2="16" stroke="#ef4444" stroke-width="2.5"/>
+      <line x1="32" y1="48" x2="32" y2="62" stroke="#ef4444" stroke-width="2.5"/>
+      <line x1="2" y1="32" x2="16" y2="32" stroke="#ef4444" stroke-width="2.5"/>
+      <line x1="48" y1="32" x2="62" y2="32" stroke="#ef4444" stroke-width="2.5"/>
+    </svg>`;
+    const crosshairUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(crosshairSvg)}`;
+
+    // 1. Persistent Tactical Beacon & 15 km Ground Primitive
+    this.activeAlertReticleEntity = this.viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 30),
+      billboard: {
+        image: crosshairUri,
+        scale: new Cesium.CallbackProperty(() => 0.95 + 0.12 * Math.sin(Date.now() / 220), false),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER
+      },
+      ellipse: {
+        semiMajorAxis: 15000.0, // 15 km radius
+        semiMinorAxis: 15000.0,
+        material: Cesium.Color.RED.withAlpha(0.35),
+        outline: true,
+        outlineColor: Cesium.Color.RED,
+        outlineWidth: 2,
+        height: 25
+      },
+      label: {
+        text: `[INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'SURVEILLANCE NODE'}]`,
+        font: 'bold 11px monospace',
+        fillColor: Cesium.Color.fromCssColorString('#fef08a'),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        showBackground: true,
+        backgroundColor: Cesium.Color.fromCssColorString('rgba(15, 23, 42, 0.9)'),
+        backgroundPadding: new Cesium.Cartesian2(8, 4),
+        pixelOffset: new Cesium.Cartesian2(0, -38),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+
+    // 2. Animated Outer Radar Sweep Wave Ground Primitive (Pulsing 15 km to 30 km)
+    const startTime = Date.now();
+    this.activeAlertPulseEntity = this.viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 10),
+      ellipse: {
+        semiMajorAxis: new Cesium.CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) % 2000;
+          return 15000 + (elapsed / 2000) * 15000;
+        }, false),
+        semiMinorAxis: new Cesium.CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) % 2000;
+          return 15000 + (elapsed / 2000) * 15000;
+        }, false),
+        material: new Cesium.ColorMaterialProperty(
+          new Cesium.CallbackProperty(() => {
+            const elapsed = (Date.now() - startTime) % 2000;
+            const alpha = Math.max(0.04, 0.45 * (1.0 - elapsed / 2000));
+            return Cesium.Color.RED.withAlpha(alpha);
+          }, false)
+        ),
+        outline: true,
+        outlineColor: Cesium.Color.RED.withAlpha(0.6),
+        outlineWidth: 1.5,
+        height: 10
+      }
+    });
+
+    // 3. Smooth Camera Glide to Incident at 45,000m
+    this.flyToCoordinates(lon, lat, 45000.0, -45.0);
+  }
+
+  /**
+   * Remove persistent incident reticle from globe
+   */
+  clearActiveAlert() {
+    if (this.activeAlertReticleEntity && this.viewer.entities.contains(this.activeAlertReticleEntity)) {
+      this.viewer.entities.remove(this.activeAlertReticleEntity);
+    }
+    if (this.activeAlertPulseEntity && this.viewer.entities.contains(this.activeAlertPulseEntity)) {
+      this.viewer.entities.remove(this.activeAlertPulseEntity);
+    }
+    this.activeAlertReticleEntity = null;
+    this.activeAlertPulseEntity = null;
+    this.activeAlertCoordinates = null;
   }
 
   /**

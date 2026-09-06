@@ -308,7 +308,7 @@ export class ControlsManager {
       });
     });
 
-    // 13. Unselect / Reset View Button
+    // 13. Unselect / Reset View Button & Banner Pan-To-Center
     const btnUnselectView = document.getElementById('btn-unselect-view');
     if (btnUnselectView) {
       btnUnselectView.addEventListener('click', () => {
@@ -318,6 +318,16 @@ export class ControlsManager {
         this._updateCamLockStyles();
         if (this.options.onUnselectView) {
           this.options.onUnselectView();
+        }
+      });
+    }
+
+    const btnBannerPan = document.getElementById('btn-banner-pan-center');
+    if (btnBannerPan) {
+      btnBannerPan.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onPanCurrentTarget) {
+          this.options.onPanCurrentTarget();
         }
       });
     }
@@ -394,6 +404,7 @@ export class ControlsManager {
 
   initIntelDrawer() {
     const intelDrawer = document.getElementById('hud-intel-drawer');
+    const zoomSliderContainer = document.getElementById('hud-zoom-slider-container');
     const btnToggleIntel = document.getElementById('btn-toggle-intel');
     const btnOpenIntelMobile = document.getElementById('btn-open-intel-drawer');
     const btnCloseIntel = document.getElementById('btn-close-intel-drawer');
@@ -409,11 +420,21 @@ export class ControlsManager {
       if (shouldOpen) {
         intelDrawer.classList.remove('translate-x-full');
         intelDrawer.classList.add('translate-x-0');
-        if (backdrop) backdrop.classList.remove('hidden');
+        if (zoomSliderContainer) {
+          zoomSliderContainer.classList.add('intel-drawer-open');
+        }
+        if (backdrop && window.innerWidth < 768) {
+          backdrop.classList.remove('hidden');
+        }
       } else {
         intelDrawer.classList.add('translate-x-full');
         intelDrawer.classList.remove('translate-x-0');
-        if (backdrop) backdrop.classList.add('hidden');
+        if (zoomSliderContainer) {
+          zoomSliderContainer.classList.remove('intel-drawer-open');
+        }
+        if (backdrop) {
+          backdrop.classList.add('hidden');
+        }
       }
     };
 
@@ -500,6 +521,10 @@ export class ControlsManager {
       if (intelDrawer) {
         intelDrawer.classList.add('translate-x-full');
         intelDrawer.classList.remove('translate-x-0');
+      }
+      const zoomSlider = document.getElementById('hud-zoom-slider-container');
+      if (zoomSlider) {
+        zoomSlider.classList.remove('intel-drawer-open');
       }
       if (backdrop) {
         backdrop.classList.add('hidden');

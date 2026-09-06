@@ -394,7 +394,7 @@ export class HudController {
       if (btnGlide) {
         btnGlide.addEventListener('click', () => {
           if (onGlideIncident) {
-            onGlideIncident(alert.coordinates);
+            onGlideIncident(alert);
           }
         });
       }

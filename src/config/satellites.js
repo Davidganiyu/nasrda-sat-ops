@@ -20,7 +20,7 @@ export const GROUND_STATIONS = {
 export const SATELLITE_CATALOG = [
   {
     id: 'nigcomsat-1r',
-    noradId: 37950,
+    noradId: 38014,
     name: 'NigComSat-1R',
     designation: '2011-077A',
     type: 'GEO',
@@ -38,8 +38,8 @@ export const SATELLITE_CATALOG = [
     coverageArea: 'West Africa, Central Africa, Southern Africa, Europe & Middle East',
     transponderStatus: 'NOMINAL / 100% OPERATIONAL',
     defaultTle: {
-      line1: '1 37950U 11077A   26242.48621528  .00000124  00000-0  00000-0 0  9993',
-      line2: '2 37950   0.0412  42.5120 0002145 184.3412  95.1245  1.00273412 53718'
+      line1: '1 38014U 11077A   26242.48621528  .00000124  00000-0  00000-0 0  9993',
+      line2: '2 38014   0.0412  42.5120 0002145 184.3412  95.1245  1.00273412 53718'
     }
   },
   {

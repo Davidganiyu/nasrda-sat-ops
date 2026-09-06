@@ -205,7 +205,9 @@ class SatOpsApplication {
         }
       },
       onPanCurrentTarget: () => {
-        if (this.hudController?.selectedFacility) {
+        if (this.globeManager?.activeAlertCoordinates) {
+          this.globeManager.panToCoordinates(this.globeManager.activeAlertCoordinates.lon, this.globeManager.activeAlertCoordinates.lat);
+        } else if (this.hudController?.selectedFacility) {
           const fac = this.hudController.selectedFacility;
           this.globeManager.panToCoordinates(fac.lon, fac.lat);
         } else if (this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot) {
@@ -327,6 +329,7 @@ class SatOpsApplication {
    */
   resetAllViews() {
     this.globeManager.resetCameraToNigeria();
+    this.globeManager.clearActiveAlert();
     if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
     if (this.hudController) {
       this.hudController.hideTrackingBanner();
@@ -440,9 +443,15 @@ class SatOpsApplication {
       this.lastIntelCalcTime = now;
       const alerts = this.aiIntelService.generateIntelStream(this.simulatedTime, this.currentSatConfig, this.passInfo);
       if (this.hudController) {
-        this.hudController.updateIntelStream(alerts, (coords) => {
-          this.globeManager.flyToCoordinates(coords.lon, coords.lat, 45000.0);
-          this.globeManager.pulseTargetReticle(coords.lon, coords.lat, 6000);
+        this.hudController.updateIntelStream(alerts, (alert) => {
+          this.globeManager.setActiveAlert(alert);
+          if (this.hudController) {
+            this.hudController.showTrackingBanner(`INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'TACTICAL TARGET'}`);
+          }
+          if (this.controlsManager) {
+            this.controlsManager.cameraLocked = false;
+            this.controlsManager._updateCamLockStyles();
+          }
         });
       }
     }
