@@ -143,7 +143,12 @@
             <div class="text-[10px] font-bold text-cyan-300 leading-tight">TELEMETRY LOCK</div>
             <div id="hud-fps" class="text-[10px] text-slate-400">60 FPS</div>
           </div>
-          <button id="btn-toggle-hud" class="ml-1 px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500 transition-all" title="Toggle HUD visibility [H]">
+          <button id="btn-toggle-intel" class="relative flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono font-bold rounded bg-slate-900 border border-emerald-500/70 text-emerald-300 hover:bg-emerald-950/80 hover:border-emerald-400 shadow-glow-emerald transition-all cursor-pointer" title="Toggle Onboard AI Mission Intelligence Stream">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>AI INTEL</span>
+            <span id="intel-badge-count" class="px-1.5 py-0.2 text-[9px] font-black rounded-full bg-red-600 text-white leading-none">0</span>
+          </button>
+          <button id="btn-toggle-hud" class="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500 transition-all" title="Toggle HUD visibility [H]">
             [H]
           </button>
         </div>
@@ -151,23 +156,29 @@
     </header>
 
     <!-- Mobile-Only Quick Access Floating Drawer Pills -->
-    <div class="md:hidden flex items-center justify-between px-1 py-1 pointer-events-none z-30">
-      <button id="btn-open-info-drawer" class="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold rounded-full hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan active:scale-95 transition-all">
+    <div class="md:hidden flex items-center justify-between px-1 py-1 pointer-events-none z-30 gap-1">
+      <button id="btn-open-info-drawer" class="pointer-events-auto flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono font-bold rounded-full hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan active:scale-95 transition-all">
         <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
-        <span>[TELEMETRY]</span>
+        <span>[TELEM]</span>
       </button>
 
-      <button id="btn-open-radar-drawer" class="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold rounded-full hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan active:scale-95 transition-all">
+      <button id="btn-open-intel-drawer" class="pointer-events-auto flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono font-bold rounded-full hud-glass-panel border border-emerald-400 text-emerald-300 shadow-glow-emerald active:scale-95 transition-all">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>[INTEL]</span>
+        <span id="intel-badge-count-mobile" class="px-1 text-[8px] font-black rounded-full bg-red-600 text-white">0</span>
+      </button>
+
+      <button id="btn-open-radar-drawer" class="pointer-events-auto flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono font-bold rounded-full hud-glass-panel border border-cyan-400 text-cyan-300 shadow-glow-cyan active:scale-95 transition-all">
         <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
           <path d="M2 12h20"></path>
         </svg>
-        <span>[GROUND LINK]</span>
+        <span>[RADAR]</span>
       </button>
     </div>
 
@@ -227,12 +238,15 @@
         </div>
       </div>
 
-      <div class="mt-3 flex items-center justify-between gap-2">
-        <button id="btn-hotspot-center" class="w-1/2 px-2.5 py-1.5 text-xs font-mono font-bold rounded bg-amber-950/80 border border-amber-500 text-amber-300 hover:bg-amber-900 shadow-glow-amber cursor-pointer transition-all active:scale-95">
+      <div class="mt-3 grid grid-cols-3 gap-1.5">
+        <button id="btn-hotspot-center" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-amber-950/80 border border-amber-500 text-amber-300 hover:bg-amber-900 shadow-glow-amber cursor-pointer transition-all active:scale-95 text-center truncate" title="Fly to default preset inspection altitude">
           [CENTER VIEW]
         </button>
-        <button id="btn-hotspot-dismiss" class="w-1/2 px-2.5 py-1.5 text-xs font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:scale-95">
-          [DISMISS / UNSELECT]
+        <button id="btn-hotspot-pan-center" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-slate-900 border border-cyan-500/70 text-cyan-300 hover:bg-cyan-950 shadow-glow-cyan cursor-pointer transition-all active:scale-95 text-center truncate" title="Pan horizontally strictly preserving current altitude & zoom">
+          [PAN-TO-CENTER]
+        </button>
+        <button id="btn-hotspot-dismiss" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:scale-95 text-center truncate">
+          [DISMISS]
         </button>
       </div>
     </div>
@@ -281,11 +295,14 @@
         </div>
       </div>
 
-      <div class="mt-3 flex items-center justify-between gap-2">
-        <button id="btn-facility-center" class="w-1/2 px-2.5 py-1.5 text-xs font-mono font-bold rounded bg-cyan-950/80 border border-cyan-500 text-cyan-300 hover:bg-cyan-900 shadow-glow-cyan cursor-pointer transition-all active:scale-95">
+      <div class="mt-3 grid grid-cols-3 gap-1.5">
+        <button id="btn-facility-center" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-cyan-950/80 border border-cyan-500 text-cyan-300 hover:bg-cyan-900 shadow-glow-cyan cursor-pointer transition-all active:scale-95 text-center truncate" title="Fly to default preset inspection altitude">
           [CENTER VIEW]
         </button>
-        <button id="btn-facility-dismiss" class="w-1/2 px-2.5 py-1.5 text-xs font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:scale-95">
+        <button id="btn-facility-pan-center" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-slate-900 border border-cyan-500/70 text-cyan-300 hover:bg-cyan-950 shadow-glow-cyan cursor-pointer transition-all active:scale-95 text-center truncate" title="Pan horizontally strictly preserving current altitude & zoom">
+          [PAN-TO-CENTER]
+        </button>
+        <button id="btn-facility-dismiss" class="px-2 py-1.5 text-[10px] font-mono font-bold rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:scale-95 text-center truncate">
           [DISMISS]
         </button>
       </div>
@@ -607,6 +624,53 @@
         </div>
       </aside>
 
+      <!-- ==================== ONBOARD AI MISSION INTEL & SITREP DRAWER ==================== -->
+      <aside id="hud-intel-drawer" class="fixed inset-y-0 right-0 z-50 w-[94vw] max-w-[440px] p-3 bg-slate-950/95 backdrop-blur-2xl border-l-2 border-emerald-500/70 shadow-2xl transition-all duration-300 ease-in-out translate-x-full overflow-hidden pointer-events-auto flex flex-col justify-between">
+        <!-- Drawer Top Bar -->
+        <div class="flex items-center justify-between pb-2 mb-2 border-b border-emerald-500/30">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-black font-display tracking-wider text-emerald-300 text-glow-emerald">AI MISSION INTEL</span>
+                <span class="text-[8px] px-1.5 py-0.2 uppercase font-bold rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 font-mono">NATIVE AI</span>
+              </div>
+              <div class="text-[9px] text-slate-400 font-mono">Autonomous SITREP Engine // Zero-Key</div>
+            </div>
+          </div>
+          <button id="btn-close-intel-drawer" class="w-6 h-6 flex items-center justify-center rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-emerald-400 text-xs font-mono transition-all cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <!-- Quick Action: Export Formal SITREP Button & Active Nodes Status -->
+        <div class="bg-slate-900/70 p-2 rounded-lg border border-emerald-500/30 mb-2 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase font-mono">INTELLIGENCE NODES</div>
+            <div class="text-[11px] font-bold text-slate-200 font-mono">4 SURVEILLANCE CLUSTERS</div>
+          </div>
+          <button id="btn-export-sitrep" class="px-2.5 py-1.5 text-xs font-mono font-bold rounded bg-emerald-950/90 border border-emerald-400 text-emerald-300 shadow-glow-emerald hover:bg-emerald-900 transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer" title="Export formal NASRDA Tactical SITREP">
+            <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>EXPORT SITREP (.TXT)</span>
+          </button>
+        </div>
+
+        <!-- Scrollable Intelligence Feed List -->
+        <div id="intel-alerts-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+          <!-- Injected dynamically by HudController -->
+        </div>
+
+        <!-- Footer Info Strip -->
+        <div class="pt-2 mt-2 border-t border-slate-800 flex items-center justify-between text-[9px] font-mono text-slate-400">
+          <span>SECURITY: CONFIDENTIAL // TACTICAL</span>
+          <span class="text-emerald-400 font-bold">WAT LOCAL SYNCHRONIZED</span>
+        </div>
+      </aside>
+
     </div>
 
     <!-- ==================== BOTTOM TACTICAL DOCK & CONTROLS ==================== -->
@@ -635,6 +699,9 @@
             </button>
             <button data-pov="ground" class="cam-pov-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-slate-200">
               ABUJA POV
+            </button>
+            <button id="btn-cam-pan-center" class="px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-cyan-400 border border-cyan-700/60 hover:text-cyan-200 hover:border-cyan-400 transition-all" title="Pan horizontally to center active target preserving current altitude">
+              PAN CENTER
             </button>
             <button id="btn-reset-view" class="px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-cyan-300">
               RESET

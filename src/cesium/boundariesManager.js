@@ -36,36 +36,44 @@ export class BoundariesManager {
       const entities = dataSource.entities.values;
       for (const entity of entities) {
         const boundaryType = entity.properties?.boundaryType?.getValue();
-
-        if (entity.polyline) {
-          let color = Cesium.Color.fromCssColorString('#2dd4bf').withAlpha(0.75); // Teal for states
-          let width = 1.8;
-          let glow = 0.25;
-
-          if (boundaryType === 'national') {
-            color = Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.95); // Glowing Cyan
-            width = 3.5;
-            glow = 0.35;
-          } else if (boundaryType === 'fct') {
-            color = Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.85); // Glowing Amber for FCT Abuja
-            width = 2.5;
-            glow = 0.30;
-          }
-
-          entity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
-            glowPower: glow,
-            taperPower: 0.9,
-            color: color
-          });
-          entity.polyline.width = width;
-          entity.polyline.arcType = Cesium.ArcType.GEODESIC;
-          entity.polyline.clampToGround = true;
-        }
+        const isFct = boundaryType === 'fct';
+        const isNational = boundaryType === 'national';
 
         if (entity.polygon) {
-          entity.polygon.material = Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.035);
+          // Extract boundary perimeter coordinates for glowing polyline overlay
+          const hierarchy = entity.polygon.hierarchy?.getValue(Cesium.JulianDate.now());
+          if (hierarchy && hierarchy.positions && hierarchy.positions.length > 2) {
+            const closedPositions = [...hierarchy.positions, hierarchy.positions[0]];
+            const color = isFct
+              ? Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.75) // Glowing amber for FCT
+              : Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.45); // Glowing cyan/teal (width: 1.5px, alpha: 0.45)
+
+            entity.polyline = new Cesium.PolylineGraphics({
+              positions: closedPositions,
+              width: 1.5,
+              material: new Cesium.PolylineGlowMaterialProperty({
+                glowPower: 0.2,
+                taperPower: 1.0,
+                color: color
+              }),
+              clampToGround: true,
+              arcType: Cesium.ArcType.GEODESIC
+            });
+          }
+
+          // Subtle terrain-transparent fill so underlying satellite imagery is never obscured
+          entity.polygon.material = Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.015);
           entity.polygon.outline = false;
-          entity.polygon.arcType = Cesium.ArcType.GEODESIC;
+        } else if (entity.polyline) {
+          // National perimeter polyline
+          entity.polyline.width = 2.5;
+          entity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.35,
+            taperPower: 0.9,
+            color: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.85)
+          });
+          entity.polyline.clampToGround = true;
+          entity.polyline.arcType = Cesium.ArcType.GEODESIC;
         }
       }
 

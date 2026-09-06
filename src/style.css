@@ -261,7 +261,12 @@ body {
 /* Mobile responsive rules */
 @media (max-width: 767px) {
   #hud-zoom-slider-container {
-    display: none !important;
+    right: 4px;
+    width: 38px;
+    min-width: 36px;
+    height: 290px;
+    max-height: 65dvh;
+    padding: 2px 1px;
   }
 }
 

@@ -123,6 +123,17 @@ export class ControlsManager {
       });
     }
 
+    // 5b. Pan-To-Center Button (Preserve Current Altitude)
+    const btnCamPanCenter = document.getElementById('btn-cam-pan-center');
+    if (btnCamPanCenter) {
+      btnCamPanCenter.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onPanCurrentTarget) {
+          this.options.onPanCurrentTarget();
+        }
+      });
+    }
+
     // 6. Layer Visibility Toggles
     const toggleBoundariesBtn = document.getElementById('toggle-boundaries-layer');
     if (toggleBoundariesBtn) {
@@ -311,10 +322,11 @@ export class ControlsManager {
       });
     }
 
-    // 14. Thermal Hotspot Modal Close & Dismiss
+    // 14. Thermal Hotspot Modal Close, Dismiss & Pan
     const btnCloseHotspot = document.getElementById('btn-close-hotspot-modal');
     const btnDismissHotspot = document.getElementById('btn-hotspot-dismiss');
     const btnCenterHotspot = document.getElementById('btn-hotspot-center');
+    const btnPanHotspot = document.getElementById('btn-hotspot-pan-center');
     const closeHotspot = () => {
       audio.playClick();
       if (this.options.onUnselectHotspot) {
@@ -331,11 +343,20 @@ export class ControlsManager {
         }
       });
     }
+    if (btnPanHotspot) {
+      btnPanHotspot.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onPanHotspot) {
+          this.options.onPanHotspot();
+        }
+      });
+    }
 
-    // 15. NASRDA Strategic Facility Modal Controls
+    // 15. NASRDA Strategic Facility Modal Controls & Pan
     const btnCloseFacility = document.getElementById('btn-close-facility-modal');
     const btnDismissFacility = document.getElementById('btn-facility-dismiss');
     const btnCenterFacility = document.getElementById('btn-facility-center');
+    const btnPanFacility = document.getElementById('btn-facility-pan-center');
     const closeFacility = () => {
       audio.playClick();
       if (this.options.onDismissFacility) {
@@ -352,12 +373,67 @@ export class ControlsManager {
         }
       });
     }
+    if (btnPanFacility) {
+      btnPanFacility.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onPanFacility) {
+          this.options.onPanFacility();
+        }
+      });
+    }
 
-    // 16. PC Desktop Collapsible Panels (Telemetry & Ground Station / Radar)
+    // 16. Onboard AI Mission Intelligence Stream Drawer & SITREP Export
+    this.initIntelDrawer();
+
+    // 17. PC Desktop Collapsible Panels (Telemetry & Ground Station / Radar)
     this.initPcCollapsiblePanels();
 
-    // 17. Mobile Slide-in Drawers ([TELEMETRY] & [GROUND LINK])
+    // 18. Mobile Slide-in Drawers ([TELEMETRY], [INTEL] & [GROUND LINK])
     this.initMobileDrawers();
+  }
+
+  initIntelDrawer() {
+    const intelDrawer = document.getElementById('hud-intel-drawer');
+    const btnToggleIntel = document.getElementById('btn-toggle-intel');
+    const btnOpenIntelMobile = document.getElementById('btn-open-intel-drawer');
+    const btnCloseIntel = document.getElementById('btn-close-intel-drawer');
+    const btnExportSitrep = document.getElementById('btn-export-sitrep');
+    const backdrop = document.getElementById('hud-drawer-backdrop');
+
+    this.toggleIntelDrawer = (forceOpen) => {
+      if (!intelDrawer) return;
+      const isOpen = intelDrawer.classList.contains('translate-x-0');
+      const shouldOpen = forceOpen !== undefined ? forceOpen : !isOpen;
+
+      audio.playClick();
+      if (shouldOpen) {
+        intelDrawer.classList.remove('translate-x-full');
+        intelDrawer.classList.add('translate-x-0');
+        if (backdrop) backdrop.classList.remove('hidden');
+      } else {
+        intelDrawer.classList.add('translate-x-full');
+        intelDrawer.classList.remove('translate-x-0');
+        if (backdrop) backdrop.classList.add('hidden');
+      }
+    };
+
+    if (btnToggleIntel) {
+      btnToggleIntel.addEventListener('click', () => this.toggleIntelDrawer());
+    }
+    if (btnOpenIntelMobile) {
+      btnOpenIntelMobile.addEventListener('click', () => this.toggleIntelDrawer());
+    }
+    if (btnCloseIntel) {
+      btnCloseIntel.addEventListener('click', () => this.toggleIntelDrawer(false));
+    }
+    if (btnExportSitrep) {
+      btnExportSitrep.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onExportSitrep) {
+          this.options.onExportSitrep();
+        }
+      });
+    }
   }
 
   initPcCollapsiblePanels() {
@@ -419,6 +495,11 @@ export class ControlsManager {
       if (rightPanel) {
         rightPanel.classList.add('translate-x-full');
         rightPanel.classList.remove('translate-x-0');
+      }
+      const intelDrawer = document.getElementById('hud-intel-drawer');
+      if (intelDrawer) {
+        intelDrawer.classList.add('translate-x-full');
+        intelDrawer.classList.remove('translate-x-0');
       }
       if (backdrop) {
         backdrop.classList.add('hidden');

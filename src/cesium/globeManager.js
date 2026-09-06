@@ -415,6 +415,83 @@ export class GlobeManager {
   }
 
   /**
+   * Pan camera horizontally to center on (lon, lat) while STRICTLY PRESERVING current camera altitude, pitch, and heading.
+   * Never zooms in or out.
+   */
+  panToCoordinates(lon, lat, duration = 1.2) {
+    const camera = this.viewer.camera;
+    const cartographic = camera.positionCartographic;
+    if (!cartographic) return;
+
+    this.cameraMode = 'free';
+    this.viewer.trackedEntity = undefined;
+
+    const currentAltitude = cartographic.height;
+    const currentHeading = camera.heading;
+    const currentPitch = camera.pitch;
+    const currentRoll = camera.roll;
+
+    const targetCartesian = Cesium.Cartesian3.fromDegrees(lon, lat, currentAltitude);
+
+    camera.flyTo({
+      destination: targetCartesian,
+      orientation: {
+        heading: currentHeading,
+        pitch: currentPitch,
+        roll: currentRoll
+      },
+      duration: duration,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+    });
+  }
+
+  /**
+   * Display an animated tactical pulsing reticle on the globe at incident coordinates
+   */
+  pulseTargetReticle(lon, lat, durationMs = 5000) {
+    const pos = Cesium.Cartesian3.fromDegrees(lon, lat, 100);
+    const startTime = Date.now();
+
+    const reticleEntity = this.viewer.entities.add({
+      position: pos,
+      ellipse: {
+        semiMajorAxis: new Cesium.CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) % 1500;
+          return 5000 + (elapsed / 1500) * 35000;
+        }, false),
+        semiMinorAxis: new Cesium.CallbackProperty(() => {
+          const elapsed = (Date.now() - startTime) % 1500;
+          return 5000 + (elapsed / 1500) * 35000;
+        }, false),
+        material: new Cesium.ColorMaterialProperty(
+          new Cesium.CallbackProperty(() => {
+            const elapsed = (Date.now() - startTime) % 1500;
+            const alpha = Math.max(0.1, 0.85 * (1.0 - elapsed / 1500));
+            return Cesium.Color.fromCssColorString('#f59e0b').withAlpha(alpha);
+          }, false)
+        ),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#f59e0b'),
+        outlineWidth: 2,
+        height: 50
+      },
+      point: {
+        pixelSize: 8,
+        color: Cesium.Color.fromCssColorString('#ef4444'),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+
+    setTimeout(() => {
+      if (this.viewer.entities.contains(reticleEntity)) {
+        this.viewer.entities.remove(reticleEntity);
+      }
+    }, durationMs);
+  }
+
+  /**
    * Get current camera height above ellipsoid in meters
    */
   getCameraAltitude() {

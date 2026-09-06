@@ -324,4 +324,95 @@ export class HudController {
       badge.classList.add('hidden');
     }
   }
+
+  /**
+   * Render or refresh AI intelligence stream cards in the drawer
+   * @param {Array} alerts Array of synthesized tactical alerts
+   * @param {Function} onGlideIncident Callback with (coordinates) when user clicks Glide & Reticle
+   */
+  updateIntelStream(alerts, onGlideIncident) {
+    const container = document.getElementById('intel-alerts-list');
+    if (!container || !alerts) return;
+
+    this.updateIntelBadge(alerts.length);
+
+    // Keep active list populated
+    container.innerHTML = '';
+
+    alerts.forEach((alert) => {
+      const card = document.createElement('div');
+      card.className = 'hud-glass-panel rounded-lg p-2.5 border border-slate-700/80 bg-slate-950/80 hover:border-emerald-500/60 transition-all text-xs font-mono relative';
+
+      const typeColor = alert.severity === 'critical' ? 'text-red-400' :
+                        alert.severity === 'tasking' ? 'text-cyan-400' :
+                        alert.severity === 'info' ? 'text-amber-400' : 'text-emerald-400';
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-1 mb-1 pb-1 border-b border-slate-800">
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full ${alert.severity === 'critical' ? 'bg-red-400 animate-ping' : 'bg-emerald-400 animate-pulse'}"></span>
+            <span class="text-[10px] font-bold ${typeColor} uppercase">[${alert.type}]</span>
+          </div>
+          <span class="text-[9px] px-1.5 py-0.2 rounded font-bold border ${alert.badgeColor}">${alert.badge}</span>
+        </div>
+
+        <div class="text-xs font-bold text-slate-100 mb-1 leading-tight">${alert.title}</div>
+        <p class="text-[10px] text-slate-300 font-sans leading-relaxed mb-2">${alert.message}</p>
+
+        <div class="bg-slate-900/80 p-1.5 rounded border border-slate-800 text-[9px] space-y-0.5 mb-2">
+          <div class="flex justify-between text-slate-400">
+            <span>TARGET ZONE:</span>
+            <span class="text-slate-200 font-bold truncate max-w-[200px]">${alert.location}</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>COORDINATES:</span>
+            <span class="text-cyan-300 font-bold">${alert.coordinates.lat.toFixed(2)}°N, ${alert.coordinates.lon.toFixed(2)}°E</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>CORRELATED SENSOR:</span>
+            <span class="text-slate-300">${alert.sensor}</span>
+          </div>
+          <div class="flex justify-between text-slate-500 pt-0.5 border-t border-slate-800">
+            <span>EPOCH (WAT):</span>
+            <span class="text-emerald-400">${alert.timestampWat}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end">
+          <button class="btn-glide-reticle px-2.5 py-1 text-[10px] font-mono font-bold rounded bg-emerald-950/80 border border-emerald-500 text-emerald-300 hover:bg-emerald-900 shadow-glow-emerald transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+            <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span>[GLIDE & RETICLE]</span>
+          </button>
+        </div>
+      `;
+
+      const btnGlide = card.querySelector('.btn-glide-reticle');
+      if (btnGlide) {
+        btnGlide.addEventListener('click', () => {
+          if (onGlideIncident) {
+            onGlideIncident(alert.coordinates);
+          }
+        });
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  updateIntelBadge(count) {
+    const badgeDesktop = document.getElementById('intel-badge-count');
+    const badgeMobile = document.getElementById('intel-badge-count-mobile');
+    if (badgeDesktop) {
+      badgeDesktop.textContent = count;
+      badgeDesktop.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    if (badgeMobile) {
+      badgeMobile.textContent = count;
+      badgeMobile.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+  }
 }

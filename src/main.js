@@ -18,6 +18,7 @@ import { ThermalHotspotsManager } from './cesium/thermalHotspots.js';
 import { OpticsManager } from './cesium/opticsManager.js';
 import { BoundariesManager } from './cesium/boundariesManager.js';
 import { FacilityBeaconsManager } from './cesium/facilityBeacons.js';
+import { AiIntelService } from './services/aiIntelService.js';
 import { RadarScope } from './hud/radarScope.js';
 import { HudController } from './hud/hudController.js';
 import { ControlsManager } from './hud/controls.js';
@@ -37,11 +38,13 @@ class SatOpsApplication {
     this.lastPassCalcTime = 0;
     this.lastOrbitCalcTime = 0;
     this.lastPhysicsComputeTime = 0;
+    this.lastIntelCalcTime = 0;
     this.physicsThrottleMs = 100; // 100ms throttle (10 Hz) for Keplerian math
     this.timeScale = 1;
     this.isPaused = false;
 
-    // Core Managers
+    // Core Managers & AI Intelligence Engine
+    this.aiIntelService = new AiIntelService();
     this.globeManager = null;
     this.satelliteEntity = null;
     this.orbitVisualizer = null;
@@ -183,11 +186,37 @@ class SatOpsApplication {
           this.globeManager.flyToFacility(this.hudController.selectedFacility);
         }
       },
+      onPanFacility: () => {
+        if (this.hudController?.selectedFacility) {
+          const fac = this.hudController.selectedFacility;
+          this.globeManager.panToCoordinates(fac.lon, fac.lat);
+        }
+      },
       onCenterHotspot: () => {
         const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
         if (spot) {
           this.globeManager.flyToCoordinates(spot.lon, spot.lat, 40000.0);
         }
+      },
+      onPanHotspot: () => {
+        const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
+        if (spot) {
+          this.globeManager.panToCoordinates(spot.lon, spot.lat);
+        }
+      },
+      onPanCurrentTarget: () => {
+        if (this.hudController?.selectedFacility) {
+          const fac = this.hudController.selectedFacility;
+          this.globeManager.panToCoordinates(fac.lon, fac.lat);
+        } else if (this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot) {
+          const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
+          this.globeManager.panToCoordinates(spot.lon, spot.lat);
+        } else if (this.latestTelemetry?.position) {
+          this.globeManager.panToCoordinates(this.latestTelemetry.position.lon, this.latestTelemetry.position.lat);
+        }
+      },
+      onExportSitrep: () => {
+        this.aiIntelService.exportSitrep(this.latestTelemetry, this.currentSatConfig, this.passInfo, this.simulatedTime);
       },
       onResetRealtime: () => {
         this.simulatedTime = new Date();
@@ -288,6 +317,9 @@ class SatOpsApplication {
         this.globeManager.updateCameraForActiveMode(this.latestTelemetry);
       }
     }
+
+    // Refresh Onboard AI Intelligence Stream for newly loaded asset
+    this.updateAiIntelStream(true);
   }
 
   /**
@@ -393,6 +425,26 @@ class SatOpsApplication {
     // Update HUD DOM with live Realtime UTC and Simulation Epoch
     if (this.hudController) {
       this.hudController.update(telem, this.currentSatConfig, this.tleInfo, this.passInfo, currentTime);
+    }
+
+    // Refresh Onboard AI Intelligence Stream periodically
+    this.updateAiIntelStream();
+  }
+
+  /**
+   * Run automated onboard AI Mission Intelligence engine and update HUD SITREP feed
+   */
+  updateAiIntelStream(force = false) {
+    const now = performance.now();
+    if (force || now - this.lastIntelCalcTime > 5000) {
+      this.lastIntelCalcTime = now;
+      const alerts = this.aiIntelService.generateIntelStream(this.simulatedTime, this.currentSatConfig, this.passInfo);
+      if (this.hudController) {
+        this.hudController.updateIntelStream(alerts, (coords) => {
+          this.globeManager.flyToCoordinates(coords.lon, coords.lat, 45000.0);
+          this.globeManager.pulseTargetReticle(coords.lon, coords.lat, 6000);
+        });
+      }
     }
   }
 
