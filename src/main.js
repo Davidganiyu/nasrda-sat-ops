@@ -66,6 +66,8 @@ class SatOpsApplication {
     // 1. Initialize Cesium Globe with unified picking & camera clamping
     this.globeManager = new GlobeManager('cesiumContainer', {
       onSelectHotspot: (spot) => {
+        this.selectedTarget = { type: 'hotspot', data: spot };
+        this.globeManager.setActiveTargetReticle({ lon: spot.lon, lat: spot.lat, title: spot.name, type: 'HOTSPOT' });
         if (this.hudController) {
           this.hudController.showHotspotModal(spot);
           this.hudController.showTrackingBanner(spot.name);
@@ -76,6 +78,8 @@ class SatOpsApplication {
         }
       },
       onSelectFacility: (fac) => {
+        this.selectedTarget = { type: 'facility', data: fac };
+        this.globeManager.setActiveTargetReticle({ lon: fac.lon, lat: fac.lat, title: fac.shortName || fac.name, type: 'FACILITY' });
         this.globeManager.flyToFacility(fac);
         if (this.hudController) {
           this.hudController.showFacilityModal(fac);
@@ -87,6 +91,7 @@ class SatOpsApplication {
         }
       },
       onSelectSatellite: (entity) => {
+        this.selectedTarget = { type: 'satellite', data: this.currentSatConfig };
         if (this.controlsManager) {
           this.controlsManager.cameraLocked = true;
           this.controlsManager.cameraMode = 'chase';
@@ -116,6 +121,8 @@ class SatOpsApplication {
     this.opticsManager = new OpticsManager(this.globeManager.viewer);
     this.thermalHotspots = new ThermalHotspotsManager(this.globeManager.viewer, {
       onSelectHotspot: (spot) => {
+        this.selectedTarget = { type: 'hotspot', data: spot };
+        this.globeManager.setActiveTargetReticle({ lon: spot.lon, lat: spot.lat, title: spot.name, type: 'HOTSPOT' });
         if (this.hudController) {
           this.hudController.showHotspotModal(spot);
           this.hudController.showTrackingBanner(spot.name);
@@ -126,6 +133,7 @@ class SatOpsApplication {
         }
       },
       onDeselectHotspot: () => {
+        this.globeManager.clearActiveTargetReticle();
         if (this.hudController) {
           this.hudController.hideHotspotModal();
           if (!this.controlsManager || !this.controlsManager.cameraLocked) {
@@ -157,6 +165,8 @@ class SatOpsApplication {
         }
       },
       onLandmarkSelect: (landmark) => {
+        this.selectedLandmark = landmark;
+        this.selectedTarget = { type: 'landmark', data: landmark };
         this.globeManager.flyToLandmark(landmark);
         if (this.hudController) {
           this.hudController.showTrackingBanner(landmark.name);
@@ -166,6 +176,7 @@ class SatOpsApplication {
       onUnselectView: () => this.resetAllViews(),
       onUnselectHotspot: () => {
         if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
+        this.globeManager.clearActiveTargetReticle();
         if (this.hudController) {
           this.hudController.hideHotspotModal();
           if (!this.controlsManager?.cameraLocked && !this.hudController?.selectedFacility) {
@@ -174,6 +185,7 @@ class SatOpsApplication {
         }
       },
       onDismissFacility: () => {
+        this.globeManager.clearActiveTargetReticle();
         if (this.hudController) {
           this.hudController.hideFacilityModal();
           if (!this.controlsManager?.cameraLocked && !this.thermalHotspots?.selectedHotspot) {
@@ -204,6 +216,20 @@ class SatOpsApplication {
           this.globeManager.panToCoordinates(spot.lon, spot.lat);
         }
       },
+      onCenterCurrentTarget: () => {
+        if (this.globeManager?.activeAlertCoordinates) {
+          this.globeManager.flyToCoordinates(this.globeManager.activeAlertCoordinates.lon, this.globeManager.activeAlertCoordinates.lat, 45000.0, -45.0);
+        } else if (this.hudController?.selectedFacility) {
+          this.globeManager.flyToFacility(this.hudController.selectedFacility);
+        } else if (this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot) {
+          const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
+          this.globeManager.flyToCoordinates(spot.lon, spot.lat, 40000.0);
+        } else if (this.selectedLandmark) {
+          this.globeManager.flyToLandmark(this.selectedLandmark);
+        } else if (this.satelliteEntity) {
+          this.globeManager.flyToSatellite(this.satelliteEntity.entity);
+        }
+      },
       onPanCurrentTarget: () => {
         if (this.globeManager?.activeAlertCoordinates) {
           this.globeManager.panToCoordinates(this.globeManager.activeAlertCoordinates.lon, this.globeManager.activeAlertCoordinates.lat);
@@ -213,6 +239,8 @@ class SatOpsApplication {
         } else if (this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot) {
           const spot = this.hudController?.selectedHotspot || this.thermalHotspots?.selectedHotspot;
           this.globeManager.panToCoordinates(spot.lon, spot.lat);
+        } else if (this.selectedLandmark) {
+          this.globeManager.panToCoordinates(this.selectedLandmark.longitude, this.selectedLandmark.latitude);
         } else if (this.latestTelemetry?.position) {
           this.globeManager.panToCoordinates(this.latestTelemetry.position.lon, this.latestTelemetry.position.lat);
         }
@@ -271,7 +299,9 @@ class SatOpsApplication {
   }
 
   /**
-   * Load satellite TLE, initialize 3D entities, and calculate orbit trail
+   * Load satellite TLE, initialize 3D entities, and calculate orbit trail.
+   * Immediately updates telemetry in 0ms using catalog ephemeris, then upgrades
+   * in the background with live CelesTrak data.
    */
   async loadSatellite(satConfig) {
     this.currentSatConfig = satConfig;
@@ -287,8 +317,15 @@ class SatOpsApplication {
     }
     this.orbitVisualizer.clear();
 
-    // Fetch TLE (Live CelesTrak or Verified Fallback Catalog)
-    this.tleInfo = await TleService.getTle(satConfig);
+    // 1. Immediately apply catalog ephemeris synchronously to guarantee 0ms UI update
+    this.tleInfo = {
+      name: satConfig.name,
+      line1: satConfig.defaultTle.line1,
+      line2: satConfig.defaultTle.line2,
+      isLive: false,
+      timestamp: new Date().toISOString(),
+      source: 'NASRDA Ephemeris'
+    };
     this.satrec = OrbitalPhysics.parseTle(this.tleInfo.line1, this.tleInfo.line2);
 
     if (!this.satrec) {
@@ -308,13 +345,13 @@ class SatOpsApplication {
     this.passInfo = OrbitalPhysics.findNextPass(this.satrec, this.simulatedTime, GROUND_STATIONS.abuja, satConfig);
     this.lastPassCalcTime = this.simulatedTime.getTime();
 
-    // Initial Telemetry Step
+    // Initial Telemetry Step (synchronously updates LEFT HUD card in 0ms)
     this.lastOrbitCalcTime = this.simulatedTime.getTime();
     this.updateTelemetryStep(this.simulatedTime);
 
-    // If camera was locked, update tracked entity
-    if (this.controlsManager.cameraLocked) {
-      this.globeManager.setCameraMode(this.controlsManager.cameraMode, this.satelliteEntity.entity, GROUND_STATIONS.abuja);
+    // If camera was locked, update camera orientation without locking trackedEntity
+    if (this.controlsManager && this.controlsManager.cameraLocked) {
+      this.globeManager.setCameraMode(this.controlsManager.cameraMode, this.satelliteEntity.entity, GROUND_STATIONS.abuja, satConfig);
       if (this.latestTelemetry) {
         this.globeManager.updateCameraForActiveMode(this.latestTelemetry);
       }
@@ -322,14 +359,32 @@ class SatOpsApplication {
 
     // Refresh Onboard AI Intelligence Stream for newly loaded asset
     this.updateAiIntelStream(true);
+
+    // 2. In background, attempt live CelesTrak TLE fetch and seamlessly upgrade
+    TleService.getTle(satConfig).then((liveTle) => {
+      if (liveTle && this.currentSatConfig.id === satConfig.id) {
+        this.tleInfo = liveTle;
+        const newSatrec = OrbitalPhysics.parseTle(liveTle.line1, liveTle.line2);
+        if (newSatrec) {
+          this.satrec = newSatrec;
+          const updatedOrbit = OrbitalPhysics.generateOrbitPath(this.satrec, this.simulatedTime, satConfig);
+          this.orbitVisualizer.updateOrbitPath(updatedOrbit, satConfig);
+          this.updateTelemetryStep(this.simulatedTime);
+        }
+      }
+    }).catch(err => {
+      console.warn(`[SatOps] Live TLE background upgrade failed for ${satConfig.name}:`, err);
+    });
   }
 
   /**
    * Reset all views, release camera lock, hide modals, and re-frame Nigeria
    */
   resetAllViews() {
+    this.selectedTarget = null;
+    this.selectedLandmark = null;
     this.globeManager.resetCameraToNigeria();
-    this.globeManager.clearActiveAlert();
+    this.globeManager.clearActiveTargetReticle();
     if (this.thermalHotspots) this.thermalHotspots.unselectHotspot();
     if (this.hudController) {
       this.hudController.hideTrackingBanner();
@@ -443,14 +498,30 @@ class SatOpsApplication {
       this.lastIntelCalcTime = now;
       const alerts = this.aiIntelService.generateIntelStream(this.simulatedTime, this.currentSatConfig, this.passInfo);
       if (this.hudController) {
-        this.hudController.updateIntelStream(alerts, (alert) => {
-          this.globeManager.setActiveAlert(alert);
-          if (this.hudController) {
-            this.hudController.showTrackingBanner(`INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'TACTICAL TARGET'}`);
-          }
-          if (this.controlsManager) {
-            this.controlsManager.cameraLocked = false;
-            this.controlsManager._updateCamLockStyles();
+        this.hudController.updateIntelStream(alerts, {
+          onCenter: (alert) => {
+            this.selectedTarget = { type: 'alert', data: alert };
+            this.globeManager.setActiveTargetReticle({ lon: alert.coordinates.lon, lat: alert.coordinates.lat, title: alert.title, type: 'INCIDENT' });
+            this.globeManager.flyToCoordinates(alert.coordinates.lon, alert.coordinates.lat, 45000.0, -45.0);
+            if (this.hudController) {
+              this.hudController.showTrackingBanner(`INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'TACTICAL TARGET'}`);
+            }
+            if (this.controlsManager) {
+              this.controlsManager.cameraLocked = false;
+              this.controlsManager._updateCamLockStyles();
+            }
+          },
+          onPan: (alert) => {
+            this.selectedTarget = { type: 'alert', data: alert };
+            this.globeManager.setActiveTargetReticle({ lon: alert.coordinates.lon, lat: alert.coordinates.lat, title: alert.title, type: 'INCIDENT' });
+            this.globeManager.panToCoordinates(alert.coordinates.lon, alert.coordinates.lat);
+            if (this.hudController) {
+              this.hudController.showTrackingBanner(`INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'TACTICAL TARGET'}`);
+            }
+            if (this.controlsManager) {
+              this.controlsManager.cameraLocked = false;
+              this.controlsManager._updateCamLockStyles();
+            }
           }
         });
       }

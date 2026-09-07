@@ -378,22 +378,38 @@ export class HudController {
           </div>
         </div>
 
-        <div class="flex items-center justify-end">
-          <button class="btn-glide-reticle px-2.5 py-1 text-[10px] font-mono font-bold rounded bg-emerald-950/80 border border-emerald-500 text-emerald-300 hover:bg-emerald-900 shadow-glow-emerald transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+        <div class="flex items-center justify-end gap-1.5">
+          <button class="btn-intel-center px-2 py-1 text-[10px] font-mono font-bold rounded bg-emerald-950/80 border border-emerald-500 text-emerald-300 hover:bg-emerald-900 shadow-glow-emerald transition-all active:scale-95 flex items-center gap-1 cursor-pointer" title="Glide to incident at preset inspection altitude">
             <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="16"></line>
               <line x1="8" y1="12" x2="16" y2="12"></line>
             </svg>
-            <span>[GLIDE & RETICLE]</span>
+            <span>[CENTER VIEW]</span>
+          </button>
+          <button class="btn-intel-pan px-2 py-1 text-[10px] font-mono font-bold rounded bg-slate-900 border border-cyan-500/70 text-cyan-300 hover:bg-cyan-950 shadow-glow-cyan transition-all active:scale-95 flex items-center gap-1 cursor-pointer" title="Pan horizontally preserving current camera altitude">
+            <span>[PAN-TO-CENTER]</span>
           </button>
         </div>
       `;
 
-      const btnGlide = card.querySelector('.btn-glide-reticle');
-      if (btnGlide) {
-        btnGlide.addEventListener('click', () => {
-          if (onGlideIncident) {
+      const btnCenter = card.querySelector('.btn-intel-center');
+      if (btnCenter) {
+        btnCenter.addEventListener('click', () => {
+          if (typeof onGlideIncident === 'function') {
+            onGlideIncident(alert);
+          } else if (onGlideIncident && onGlideIncident.onCenter) {
+            onGlideIncident.onCenter(alert);
+          }
+        });
+      }
+
+      const btnPan = card.querySelector('.btn-intel-pan');
+      if (btnPan) {
+        btnPan.addEventListener('click', () => {
+          if (onGlideIncident && onGlideIncident.onPan) {
+            onGlideIncident.onPan(alert);
+          } else if (typeof onGlideIncident === 'function') {
             onGlideIncident(alert);
           }
         });

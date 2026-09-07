@@ -92,20 +92,29 @@ export class GlobeManager {
     globe.nightFadeOutDistance = 5000000.0;
     globe.baseColor = Cesium.Color.BLACK;
 
+    // Set WebGL context options directly to guarantee stability on mobile devices
+    if (scene.context) {
+      if (!scene.context.options) scene.context.options = {};
+      scene.context.options.webgl = {
+        alpha: false,
+        depth: true,
+        antialias: false,
+        preserveDrawingBuffer: true
+      };
+    }
+
     // Add High-Resolution Satellite Imagery with robust fallback
     try {
-      const esriImagery = new Cesium.UrlTemplateImageryProvider({
-        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        maximumLevel: 19,
-        credit: 'Esri, Maxar, Earthstar Geographics'
+      const arcgisProvider = new Cesium.ArcGisMapServerImageryProvider({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+        enablePickFeatures: false
       });
-      this.viewer.imageryLayers.addImageryProvider(esriImagery);
+      this.viewer.imageryLayers.addImageryProvider(arcgisProvider);
     } catch (e) {
-      console.warn('[GlobeManager] Esri imagery fallback active:', e);
+      console.warn('[GlobeManager] ArcGIS imagery provider fallback active:', e);
       try {
-        const osm = new Cesium.UrlTemplateImageryProvider({
-          url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          maximumLevel: 19
+        const osm = new Cesium.OpenStreetMapImageryProvider({
+          url: 'https://tile.openstreetmap.org/'
         });
         this.viewer.imageryLayers.addImageryProvider(osm);
       } catch (e2) {}
@@ -232,13 +241,10 @@ export class GlobeManager {
     if (mode === 'free') {
       this.viewer.trackedEntity = undefined;
     } else if (mode === 'track' && satelliteEntity) {
-      this.viewer.trackedEntity = satelliteEntity;
-      const range = this.isCurrentSatGeo ? 12000000.0 : 2500000.0;
-      this.viewer.zoomTo(satelliteEntity, new Cesium.HeadingPitchRange(
-        Cesium.Math.toRadians(0),
-        Cesium.Math.toRadians(-35),
-        range
-      ));
+      // Never lock trackedEntity (which artificially locks the icon in the screen center).
+      // Instead, glide camera smoothly towards satellite and let it move freely across the globe.
+      this.viewer.trackedEntity = undefined;
+      this.flyToSatellite(satelliteEntity);
     } else if (mode === 'chase') {
       this.viewer.trackedEntity = undefined; // Driven directly by updateCameraForActiveMode along velocity vector
       this.chaseZoomScale = 1.0;
@@ -271,8 +277,11 @@ export class GlobeManager {
 
     if (this.cameraMode === 'chase') {
       const isGeo = this.isCurrentSatGeo;
-      const baseDistance = isGeo ? 15000000.0 : 2500000.0; // 15,000 km for GEO, 2,500 km for LEO
-      const distance = baseDistance * this.chaseZoomScale;
+      // Trailing distance & height: 2,000 km behind & 400 km above for LEO; 10,000 km behind & 2,000 km above for GEO
+      const baseDistance = isGeo ? 10000000.0 : 2000000.0;
+      const baseHeight = isGeo ? 2000000.0 : 400000.0;
+      const backDist = baseDistance * this.chaseZoomScale;
+      const upDist = baseHeight * this.chaseZoomScale;
 
       const satPos = new Cesium.Cartesian3(
         telemetry.position.ecf.x * 1000,
@@ -280,15 +289,27 @@ export class GlobeManager {
         telemetry.position.ecf.z * 1000
       );
 
-      // Velocity in ECF frame
-      const vel = new Cesium.Cartesian3(
-        telemetry.velocity.vx * 1000,
-        telemetry.velocity.vy * 1000,
-        telemetry.velocity.vz * 1000
-      );
+      // Velocity direction in ECF frame
+      let vDir;
+      if (isGeo) {
+        const lonRad = Cesium.Math.toRadians(telemetry.position.lon || 42.5);
+        vDir = new Cesium.Cartesian3(-Math.sin(lonRad), Math.cos(lonRad), 0);
+      } else if (telemetry.velocity?.ecf) {
+        vDir = new Cesium.Cartesian3(
+          telemetry.velocity.ecf.vx * 1000,
+          telemetry.velocity.ecf.vy * 1000,
+          telemetry.velocity.ecf.vz * 1000
+        );
+      } else {
+        vDir = new Cesium.Cartesian3(
+          telemetry.velocity.vx * 1000,
+          telemetry.velocity.vy * 1000,
+          telemetry.velocity.vz * 1000
+        );
+      }
 
-      let vDir = Cesium.Cartesian3.normalize(vel, new Cesium.Cartesian3());
-      if (Cesium.Cartesian3.magnitude(vDir) < 0.1) {
+      vDir = Cesium.Cartesian3.normalize(vDir, new Cesium.Cartesian3());
+      if (Cesium.Cartesian3.magnitude(vDir) < 0.01) {
         vDir = new Cesium.Cartesian3(0, 1, 0);
       }
 
@@ -299,15 +320,11 @@ export class GlobeManager {
       const rightDir = Cesium.Cartesian3.cross(vDir, rDir, new Cesium.Cartesian3());
       Cesium.Cartesian3.normalize(rightDir, rightDir);
 
-      // In-plane local zenith up vector
+      // Local zenith up vector (radially outwards / perpendicular to velocity)
       const upDir = Cesium.Cartesian3.cross(rightDir, vDir, new Cesium.Cartesian3());
       Cesium.Cartesian3.normalize(upDir, upDir);
 
-      // Trailing behind craft along flight velocity vector with -20° pitch
-      const pitchRad = Cesium.Math.toRadians(20.0);
-      const backDist = distance * Math.cos(pitchRad);
-      const upDist = distance * Math.sin(pitchRad);
-
+      // Position camera 2,000 km behind and 400 km above craft along velocity vector (10,000 km for GEO)
       const cameraPos = new Cesium.Cartesian3();
       Cesium.Cartesian3.multiplyByScalar(vDir, -backDist, cameraPos);
       const elevated = new Cesium.Cartesian3();
@@ -315,9 +332,11 @@ export class GlobeManager {
       Cesium.Cartesian3.add(cameraPos, elevated, cameraPos);
       Cesium.Cartesian3.add(cameraPos, satPos, cameraPos);
 
-      // Camera points directly at satellite bus
-      const lookDir = new Cesium.Cartesian3();
-      Cesium.Cartesian3.subtract(satPos, cameraPos, lookDir);
+      // Frame satellite in upper-center third with Earth curving underneath:
+      // Aim camera direction slightly below satellite (~10° downward pitch offset)
+      const targetOffset = Cesium.Cartesian3.multiplyByScalar(upDir, -0.18 * backDist, new Cesium.Cartesian3());
+      const lookTarget = Cesium.Cartesian3.add(satPos, targetOffset, new Cesium.Cartesian3());
+      const lookDir = Cesium.Cartesian3.subtract(lookTarget, cameraPos, new Cesium.Cartesian3());
       Cesium.Cartesian3.normalize(lookDir, lookDir);
 
       this.viewer.camera.setView({
@@ -329,9 +348,10 @@ export class GlobeManager {
       });
     } else if (this.cameraMode === 'topdown') {
       // NADIR VIEW:
-      // Snap camera directly to satellite's current geodetic latitude/longitude pointing straight down at ground (pitch -90°)
+      // Position camera directly at satellite's current sub-satellite geodetic coordinate pointing straight down (pitch: -90°, heading: 0)
+      // Altitude: 1,200 km for LEO (NigeriaSat-2/X) to show true optical ground swath & Earth observation footprint over terrain
       const isGeo = this.isCurrentSatGeo;
-      const altitude = isGeo ? 35786000.0 : 1200000.0; // 35,786 km for GEO, 1,200 km for LEO
+      const altitude = isGeo ? 35786000.0 : 1200000.0; // 1,200 km for LEO, 35,786 km for GEO
 
       const destination = Cesium.Cartesian3.fromDegrees(
         telemetry.position.lon,
@@ -343,7 +363,7 @@ export class GlobeManager {
         destination: destination,
         orientation: {
           heading: 0.0,
-          pitch: Cesium.Math.toRadians(-89.9), // pointing straight down
+          pitch: Cesium.Math.toRadians(-89.99), // pointing straight down
           roll: 0.0
         }
       });
@@ -419,8 +439,9 @@ export class GlobeManager {
   }
 
   /**
-   * Pan camera horizontally to center on (lon, lat) while STRICTLY PRESERVING current camera altitude, pitch, and heading.
-   * Never zooms in or out.
+   * Pan camera horizontally to center on (lon, lat) while STRICTLY PRESERVING current camera altitude.
+   * Uses straight-down nadir pitch (-89.99°) so the coordinate lands in the exact geometric center of the screen
+   * without dropping below the bottom edge.
    */
   panToCoordinates(lon, lat, duration = 1.2) {
     const camera = this.viewer.camera;
@@ -430,19 +451,15 @@ export class GlobeManager {
     this.cameraMode = 'free';
     this.viewer.trackedEntity = undefined;
 
-    const currentAltitude = cartographic.height;
-    const currentHeading = camera.heading;
-    const currentPitch = camera.pitch;
-    const currentRoll = camera.roll;
-
+    const currentAltitude = Math.max(cartographic.height, 2000.0);
     const targetCartesian = Cesium.Cartesian3.fromDegrees(lon, lat, currentAltitude);
 
     camera.flyTo({
       destination: targetCartesian,
       orientation: {
-        heading: currentHeading,
-        pitch: currentPitch,
-        roll: currentRoll
+        heading: camera.heading || 0.0,
+        pitch: Cesium.Math.toRadians(-89.99), // Looking straight down guarantees exact screen center!
+        roll: 0.0
       },
       duration: duration,
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
@@ -496,19 +513,21 @@ export class GlobeManager {
   }
 
   /**
-   * Set and display a persistent tactical reticle and marker for an AI mission intelligence alert.
-   * Remains active until cleared via clearActiveAlert() or resetAllViews().
-   * @param {Object} alert Alert object with coordinates and title
+   * Set and display a persistent tactical reticle and marker for an AI mission intelligence ale  /**
+   * Set and display a persistent tactical reticle and marker for any selected entity (AI Alert or Thermal Hotspot).
+   * Remains active until cleared via clearActiveTargetReticle() / clearActiveAlert() or resetAllViews().
+   * @param {Object} target Target object with lon, lat, and title/type
    */
-  setActiveAlert(alert) {
-    if (!alert) return;
-    this.clearActiveAlert();
+  setActiveTargetReticle(target) {
+    if (!target) return;
+    this.clearActiveTargetReticle();
 
-    const lat = alert.coordinates?.lat !== undefined ? alert.coordinates.lat : alert.lat;
-    const lon = alert.coordinates?.lon !== undefined ? alert.coordinates.lon : alert.lon;
+    const lat = target.coordinates?.lat !== undefined ? target.coordinates.lat : target.lat;
+    const lon = target.coordinates?.lon !== undefined ? target.coordinates.lon : target.lon;
     if (lat === undefined || lon === undefined) return;
 
-    this.activeAlertCoordinates = { lon, lat, title: alert.title || 'ACTIVE INCIDENT' };
+    const title = target.title || target.name || 'TARGET NODE';
+    this.activeAlertCoordinates = { lon, lat, title };
 
     const crosshairSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
       <circle cx="32" cy="32" r="28" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6,4"/>
@@ -541,7 +560,7 @@ export class GlobeManager {
         height: 25
       },
       label: {
-        text: `[INCIDENT: ${alert.title ? alert.title.toUpperCase() : 'SURVEILLANCE NODE'}]`,
+        text: `[TARGET: ${title.toUpperCase()}]`,
         font: 'bold 11px monospace',
         fillColor: Cesium.Color.fromCssColorString('#fef08a'),
         outlineColor: Cesium.Color.BLACK,
@@ -581,15 +600,24 @@ export class GlobeManager {
         height: 10
       }
     });
-
-    // 3. Smooth Camera Glide to Incident at 45,000m
-    this.flyToCoordinates(lon, lat, 45000.0, -45.0);
   }
 
   /**
-   * Remove persistent incident reticle from globe
+   * Alias for backward compatibility
    */
-  clearActiveAlert() {
+  setActiveAlert(alert) {
+    this.setActiveTargetReticle(alert);
+    const lat = alert.coordinates?.lat !== undefined ? alert.coordinates.lat : alert.lat;
+    const lon = alert.coordinates?.lon !== undefined ? alert.coordinates.lon : alert.lon;
+    if (lat !== undefined && lon !== undefined) {
+      this.flyToCoordinates(lon, lat, 45000.0, -45.0);
+    }
+  }
+
+  /**
+   * Remove persistent incident / target reticle from globe
+   */
+  clearActiveTargetReticle() {
     if (this.activeAlertReticleEntity && this.viewer.entities.contains(this.activeAlertReticleEntity)) {
       this.viewer.entities.remove(this.activeAlertReticleEntity);
     }
@@ -599,6 +627,13 @@ export class GlobeManager {
     this.activeAlertReticleEntity = null;
     this.activeAlertPulseEntity = null;
     this.activeAlertCoordinates = null;
+  }
+
+  /**
+   * Alias for backward compatibility
+   */
+  clearActiveAlert() {
+    this.clearActiveTargetReticle();
   }
 
   /**

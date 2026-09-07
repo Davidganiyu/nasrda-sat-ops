@@ -123,17 +123,6 @@ export class ControlsManager {
       });
     }
 
-    // 5b. Pan-To-Center Button (Preserve Current Altitude)
-    const btnCamPanCenter = document.getElementById('btn-cam-pan-center');
-    if (btnCamPanCenter) {
-      btnCamPanCenter.addEventListener('click', () => {
-        audio.playClick();
-        if (this.options.onPanCurrentTarget) {
-          this.options.onPanCurrentTarget();
-        }
-      });
-    }
-
     // 6. Layer Visibility Toggles
     const toggleBoundariesBtn = document.getElementById('toggle-boundaries-layer');
     if (toggleBoundariesBtn) {
@@ -308,7 +297,7 @@ export class ControlsManager {
       });
     });
 
-    // 13. Unselect / Reset View Button & Banner Pan-To-Center
+    // 13. Unselect / Reset View Button & Banner Pan / Center Controls
     const btnUnselectView = document.getElementById('btn-unselect-view');
     if (btnUnselectView) {
       btnUnselectView.addEventListener('click', () => {
@@ -318,6 +307,16 @@ export class ControlsManager {
         this._updateCamLockStyles();
         if (this.options.onUnselectView) {
           this.options.onUnselectView();
+        }
+      });
+    }
+
+    const btnBannerCenter = document.getElementById('btn-banner-center');
+    if (btnBannerCenter) {
+      btnBannerCenter.addEventListener('click', () => {
+        audio.playClick();
+        if (this.options.onCenterCurrentTarget) {
+          this.options.onCenterCurrentTarget();
         }
       });
     }

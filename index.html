@@ -186,6 +186,9 @@
     <div id="hud-tracking-banner" class="hidden fixed top-16 md:top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full hud-glass-panel border border-cyan-400 shadow-glow-cyan">
       <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
       <span id="hud-tracking-title" class="text-xs font-mono font-bold text-cyan-300">TRACKING: NIGCOMSAT-1R</span>
+      <button id="btn-banner-center" class="px-2 py-0.5 text-[10px] font-mono font-black uppercase rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-400 text-cyan-200 transition-all active:scale-95 shadow-glow-cyan" title="Fly to default preset inspection altitude">
+        [CENTER VIEW]
+      </button>
       <button id="btn-banner-pan-center" class="px-2 py-0.5 text-[10px] font-mono font-black uppercase rounded bg-slate-900 hover:bg-cyan-950 border border-cyan-500/70 text-cyan-300 transition-all active:scale-95 shadow-glow-cyan" title="Pan horizontally to center active target preserving current altitude">
         [PAN-TO-CENTER]
       </button>
@@ -702,9 +705,6 @@
             </button>
             <button data-pov="ground" class="cam-pov-btn px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-slate-200">
               ABUJA POV
-            </button>
-            <button id="btn-cam-pan-center" class="px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-cyan-400 border border-cyan-700/60 hover:text-cyan-200 hover:border-cyan-400 transition-all" title="Pan horizontally to center active target preserving current altitude">
-              PAN CENTER
             </button>
             <button id="btn-reset-view" class="px-2 py-1 text-xs font-mono rounded bg-slate-900/60 text-slate-400 border border-slate-700 hover:text-cyan-300">
               RESET

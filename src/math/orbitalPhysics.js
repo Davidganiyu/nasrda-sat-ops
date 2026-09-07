@@ -9,6 +9,18 @@ import { GROUND_STATIONS } from '../config/satellites.js';
 const EARTH_RADIUS_KM = 6378.137;
 const SPEED_OF_LIGHT_KMS = 299792.458; // km/s
 
+// Safe angle conversion helpers that never throw RangeError on [-pi, pi] domain violations
+function safeDegreesLong(radians) {
+  let deg = (radians * (180 / Math.PI)) % 360;
+  if (deg > 180) deg -= 360;
+  if (deg < -180) deg += 360;
+  return deg;
+}
+
+function safeDegreesLat(radians) {
+  return radians * (180 / Math.PI);
+}
+
 export class OrbitalPhysics {
   /**
    * Parse TLE lines into satellite record
@@ -99,8 +111,8 @@ export class OrbitalPhysics {
         positionEcf = satellite.eciToEcf(posEci, gstime);
 
         const positionGd = satellite.eciToGeodetic(posEci, gstime);
-        longitudeDeg = satellite.degreesLong(positionGd.longitude);
-        latitudeDeg = satellite.degreesLat(positionGd.latitude);
+        longitudeDeg = safeDegreesLong(positionGd.longitude);
+        latitudeDeg = safeDegreesLat(positionGd.latitude);
         altitudeKm = positionGd.height;
 
         vx = velEci.x;
@@ -117,14 +129,21 @@ export class OrbitalPhysics {
       };
 
       const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
-      let azimuthDeg = (satellite.degreesLong(lookAngles.azimuth) + 360) % 360;
-      let elevationDeg = satellite.degreesLat(lookAngles.elevation);
+      let azimuthDeg = ((lookAngles.azimuth * (180 / Math.PI)) % 360 + 360) % 360;
+      let elevationDeg = lookAngles.elevation * (180 / Math.PI);
       const slantRangeKm = lookAngles.rangeSat;
 
-      // Range rate calculation for Doppler Shift
+      // Range rate calculation for Doppler Shift and ECF velocity
       let rangeRateKmS = 0;
+      let velEcf = { vx: 0, vy: 0, vz: 0 };
       if (isGeo) {
         rangeRateKmS = 0.002 * Math.sin((date.getTime() / 1000 / 86164.09) * 2 * Math.PI);
+        const lonRad = satellite.degreesToRadians(longitudeDeg);
+        velEcf = {
+          vx: -speedKmS * Math.sin(lonRad),
+          vy: speedKmS * Math.cos(lonRad),
+          vz: 0
+        };
       } else {
         const dateNext = new Date(date.getTime() + 1000);
         const gstimeNext = satellite.gstime(dateNext);
@@ -133,6 +152,11 @@ export class OrbitalPhysics {
           const ecfNext = satellite.eciToEcf(pvNext.position, gstimeNext);
           const lookNext = satellite.ecfToLookAngles(observerGd, ecfNext);
           rangeRateKmS = lookNext.rangeSat - slantRangeKm;
+          velEcf = {
+            vx: ecfNext.x - positionEcf.x,
+            vy: ecfNext.y - positionEcf.y,
+            vz: ecfNext.z - positionEcf.z
+          };
         }
       }
 
@@ -173,7 +197,8 @@ export class OrbitalPhysics {
           scalar: speedKmS,
           vx,
           vy,
-          vz
+          vz,
+          ecf: velEcf
         },
         lookAngles: {
           azimuth: azimuthDeg,
@@ -261,8 +286,8 @@ export class OrbitalPhysics {
             y: ecf.y * 1000,
             z: ecf.z * 1000
           },
-          lat: satellite.degreesLat(gd.latitude),
-          lon: satellite.degreesLong(gd.longitude),
+          lat: safeDegreesLat(gd.latitude),
+          lon: safeDegreesLong(gd.longitude),
           alt: gd.height * 1000 // meters
         });
       }
