@@ -107,6 +107,9 @@ class SatOpsApplication {
       }
     });
 
+    // Await base imagery provider initialization
+    await this.globeManager.initBaseImagery();
+
     // 2. Initialize Tactical Vertical Zoom Slider
     this.zoomSlider = new ZoomSlider({ globeManager: this.globeManager });
 

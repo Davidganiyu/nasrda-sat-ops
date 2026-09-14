@@ -51,6 +51,7 @@ export class GlobeManager {
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       baseLayerPicker: false,
+      baseLayer: false,
       shadows: false,
       terrainShadows: Cesium.ShadowMode.DISABLED,
       skyBox: new Cesium.SkyBox({
@@ -75,6 +76,11 @@ export class GlobeManager {
 
     const scene = this.viewer.scene;
     const globe = scene.globe;
+
+    // Attach error listener to prevent unhandled render loop termination
+    scene.renderError.addEventListener((sceneInstance, error) => {
+      console.error('Cesium Render Error caught:', error);
+    });
 
     // Mobile WebGL Stability & Performance Tuning
     scene.highDynamicRange = false;
@@ -103,22 +109,8 @@ export class GlobeManager {
       };
     }
 
-    // Add High-Resolution Satellite Imagery with robust fallback
-    try {
-      const arcgisProvider = new Cesium.ArcGisMapServerImageryProvider({
-        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
-        enablePickFeatures: false
-      });
-      this.viewer.imageryLayers.addImageryProvider(arcgisProvider);
-    } catch (e) {
-      console.warn('[GlobeManager] ArcGIS imagery provider fallback active:', e);
-      try {
-        const osm = new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://tile.openstreetmap.org/'
-        });
-        this.viewer.imageryLayers.addImageryProvider(osm);
-      } catch (e2) {}
-    }
+    // Initialize base imagery asynchronously
+    this.initBaseImagery();
 
     // Atmosphere styling
     if (scene.skyAtmosphere) {
@@ -183,6 +175,42 @@ export class GlobeManager {
     window.addEventListener('orientationchange', () => {
       setTimeout(onResize, 120);
     });
+  }
+
+  /**
+   * Asynchronously initialize base imagery layer with bulletproof fallback
+   */
+  async initBaseImagery() {
+    if (this._baseImageryLoading) return this._baseImageryLoading;
+    this._baseImageryLoading = (async () => {
+      const viewer = this.viewer;
+      if (!viewer || viewer.isDestroyed()) return;
+
+      try {
+        const imageryProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+          'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+          { enablePickFeatures: false }
+        );
+        if (viewer && !viewer.isDestroyed()) {
+          viewer.imageryLayers.removeAll();
+          viewer.imageryLayers.addImageryProvider(imageryProvider);
+        }
+      } catch (err) {
+        console.warn('Primary imagery failed, falling back to OpenStreetMap:', err);
+        try {
+          const osmProvider = typeof Cesium.OpenStreetMapImageryProvider?.fromUrl === 'function'
+            ? await Cesium.OpenStreetMapImageryProvider.fromUrl('https://tile.openstreetmap.org/')
+            : new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' });
+          if (viewer && !viewer.isDestroyed()) {
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(osmProvider);
+          }
+        } catch (fallbackErr) {
+          console.error('All remote imagery failed, using default offline layer:', fallbackErr);
+        }
+      }
+    })();
+    return this._baseImageryLoading;
   }
 
   initPickingHandler() {
